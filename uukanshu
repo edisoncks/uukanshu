@@ -22,7 +22,7 @@ KEYS (shown in the footer bar too)
   l           chapter list — opens instantly with a spinner while the list
               is fetched; cached per book. Esc or q closes it, Enter jumps
   q           quit
-  ctrl-d/ctrl-u   half page down/up (smooth glide)   arrows / PgUp / PgDn / Home / End
+  d/u            scroll down/up (smooth glide)      arrows / PgUp / PgDn / Home / End
 
   Built-in messages follow the content: Simplified with -z, Traditional
   otherwise.
@@ -177,8 +177,8 @@ class TocScreen(ModalScreen):
     BINDINGS = [
         Binding("escape", "close", "close", priority=True),
         Binding("q", "close", "close"),
-        Binding("ctrl+d", "half(1)", "half down", priority=True),
-        Binding("ctrl+u", "half(-1)", "half up", priority=True),
+        Binding("d", "half(1)", "scroll down", priority=True),
+        Binding("u", "half(-1)", "scroll up", priority=True),
     ]
 
     def __init__(self, current_url, ui=None):
@@ -189,7 +189,7 @@ class TocScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="tocbox"):
-            yield Static(self.ui("章节目录 / Chapters — ↑↓/ctrl-d/u · Enter jump · Esc close"),
+            yield Static(self.ui("章节目录 / Chapters — ↑↓/d/u · Enter jump · Esc close"),
                          id="tochead")
             yield LoadingIndicator(id="tocspin")
             yield OptionList()
@@ -202,7 +202,7 @@ class TocScreen(ModalScreen):
     def action_half(self, sign: int) -> None:
         ol = self.query_one(OptionList)
         step = max(1, ol.container_size.height // 2) * sign
-        ol.scroll_relative(0, step, speed=60, easing="out_quart")
+        ol.scroll_relative(0, step, speed=40, easing="out_quart")
 
     def populate(self, chapters) -> None:
         """Safe to call before OR after the modal has mounted."""
@@ -253,8 +253,8 @@ class Reader(App):
         Binding("p", "prev", "prev"),
         Binding("l", "list", "chapters"),
         Binding("q", "quit", "quit"),
-        Binding("ctrl+d", "half(1)", "half down"),
-        Binding("ctrl+u", "half(-1)", "half up"),
+        Binding("d", "half(1)", "scroll down"),
+        Binding("u", "half(-1)", "scroll up"),
     ]
 
     def __init__(self, url: str, cc, pad: int):
@@ -296,7 +296,7 @@ class Reader(App):
     def action_half(self, sign: int) -> None:
         page = self.query_one("#page", VerticalScroll)
         step = max(1, page.container_size.height // 2) * sign
-        page.scroll_relative(0, step, speed=60, easing="out_quart")
+        page.scroll_relative(0, step, speed=40, easing="out_quart")
 
     # -- content loading
 
