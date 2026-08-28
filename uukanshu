@@ -23,9 +23,11 @@ KEYS (shown in the footer bar too)
               is fetched; cached per book. Esc or q closes it, Enter jumps
   q           quit
   d/u            half-page down/up (smooth glide)   arrows / PgUp / PgDn / Home / End
+  z           toggle Simplified / Traditional — instantly re-renders the
+              chapter text, header title, chapter list, and UI messages
+              without refetching
 
-  Built-in messages follow the content: Simplified with -z, Traditional
-  otherwise.
+  Built-in messages follow the content's mode; -z starts in Simplified.
 
 EXAMPLES
   # browse a book's chapter list, then pick one by number
@@ -254,15 +256,18 @@ class Reader(App):
         Binding("n", "next", "next"),
         Binding("p", "prev", "prev"),
         Binding("l", "list", "chapters"),
+        Binding("z", "toggle_simplified", "simplified"),
         Binding("q", "quit", "quit"),
     ]
 
     def __init__(self, url: str, cc, pad: int):
         super().__init__()
         self.url = url
-        self.cc = cc
         self.pad = pad
-        self._s2t = None  # lazily built: localize chrome to Traditional when not -z
+        self.simplified = cc is not None
+        self._t2s = cc    # t2s converter (reused from CLI when -z; built lazily otherwise)
+        self._s2t = None  # lazily built: chrome localization for Traditional mode
+        self._raw = None  # raw (book, title, text) of the last fetched chapter
         self.next_url = self.prev_url = None
         m = re.search(r"/book/(\d+)/", url)
         self.book_id = m.group(1) if m else None
@@ -279,19 +284,36 @@ class Reader(App):
         doc.styles.padding = (self.pad, self.pad)
         self.load_chapter(self.url)
 
+    def _conv_t2s(self):
+        """Lazily built Traditional -> Simplified converter."""
+        if self._t2s is None:
+            import opencc
+            self._t2s = opencc.OpenCC("t2s")
+        return self._t2s
+
     def ui(self, s: str) -> str:
         """Built-in chrome strings are written Simplified; show them
-        Traditional when the reader is displaying Traditional content."""
-        if self.cc is None:
-            if self._s2t is None:
-                try:
-                    import opencc
-                    self._s2t = opencc.OpenCC("s2t")
-                except Exception:
-                    self._s2t = False
-            if self._s2t:
-                s = self._s2t.convert(s)
-        return s
+        Traditional while the reader is in Traditional mode."""
+        if self.simplified:
+            return s
+        if self._s2t is None:
+            try:
+                import opencc
+                self._s2t = opencc.OpenCC("s2t")
+            except Exception:
+                self._s2t = False
+        return self._s2t.convert(s) if self._s2t else s
+
+    def _render(self, book, title, text):
+        """Render the given (raw) chapter content in the current mode."""
+        if self.simplified:
+            book, title, text = to_simplified(self._conv_t2s(), book, title, text)
+        self.title = f"{book} — {title}" if book else title
+        self.query_one("#doc", Static).update(Text.assemble(
+            (book + "\n", "bold"),
+            (title + "\n\n", "bold cyan"),
+            (text + "\n", ""),
+        ))
 
     def action_half(self, sign: int) -> None:
         page = self.query_one("#page", VerticalScroll)
@@ -310,18 +332,12 @@ class Reader(App):
         except Exception as exc:
             doc.update(f"[bold red]error:[/] {exc}")
             return
-        if self.cc:
-            book, title, text = to_simplified(self.cc, book, title, text)
         m = re.search(r"/book/(\d+)/", url)
         if m:
             self.book_id = m.group(1)
         self.prev_url, self.next_url = prev_url, next_url
-        self.title = f"{book} — {title}" if book else title
-        doc.update(Text.assemble(
-            (book + "\n", "bold"),
-            (title + "\n\n", "bold cyan"),
-            (text + "\n", ""),
-        ))
+        self._raw = (book, title, text)
+        self._render(book, title, text)
         self.query_one(VerticalScroll).scroll_home(immediate=True)
 
     # -- navigation actions
@@ -346,6 +362,27 @@ class Reader(App):
         else:
             self.notify(self.ui("已是第一章") + " / start of book", severity="warning")
 
+    def action_toggle_simplified(self) -> None:
+        if self._raw is None:
+            self.notify(self.ui("尚无内容") + " / nothing loaded yet",
+                        severity="warning")
+            return
+        self.simplified = not self.simplified
+        self._render(*self._raw)
+        if (self.chapters_cache and self._cache_book == self.book_id
+                and isinstance(self.screen, TocScreen)):
+            self.screen.populate(self._toc_converted(self.chapters_cache))
+            self.screen.query_one("#tochead", Static).update(
+                self.ui("章节目录 / Chapters — ↑↓/d/u · Enter jump · Esc close"))
+
+    def _toc_converted(self, chapters):
+        """Chapter list with titles converted to the current mode. The
+        cache itself stays raw — OpenCC round-trips aren't lossless."""
+        if not self.simplified:
+            return chapters
+        conv = to_simplified(self._conv_t2s(), *[t for _p, _i, t, _u in chapters])
+        return [(p, i, t2, u) for (p, i, _t, u), t2 in zip(chapters, conv)]
+
     def action_list(self) -> None:
         if self.modal:
             return
@@ -356,7 +393,7 @@ class Reader(App):
         screen = TocScreen(self.url, ui=self.ui)
         self.push_screen(screen, self.on_toc_choice)
         if self.chapters_cache and self._cache_book == self.book_id:
-            screen.populate(self.chapters_cache)
+            screen.populate(self._toc_converted(self.chapters_cache))
         else:
             self.fetch_toc(screen)
 
@@ -366,18 +403,14 @@ class Reader(App):
         book_id = self.book_id
         try:
             page = await asyncio.to_thread(fetch, f"{BASE}/book/{book_id}/")
-            chapters = chapter_list(page)
-            if self.cc:
-                conv = to_simplified(self.cc, *[t for _p, _i, t, _u in chapters])
-                chapters = [(p, i, t2, u)
-                            for (p, i, _t, u), t2 in zip(chapters, conv)]
+            chapters = chapter_list(page)  # cached raw; converted at populate time
         except Exception as exc:
             if self.screen is screen:
                 screen.show_error(str(exc))
             return
         self.chapters_cache, self._cache_book = chapters, book_id
         if self.screen is screen:
-            screen.populate(chapters)
+            screen.populate(self._toc_converted(chapters))
 
     def on_toc_choice(self, url) -> None:
         if url:
