@@ -1,0 +1,465 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["OpenCC", "textual >=0.86"]
+# ///
+"""uukanshu — read novels from uukanshu.cc in your terminal.
+
+Fetches chapters with the stealth build of obscura (gets past Cloudflare),
+strips the page down to just the chapter text, optionally converts
+Traditional -> Simplified Chinese (OpenCC), and shows it in a Textual
+reading pane: CJK-aware reflowing padding, live resize, and in-app
+chapter navigation.
+
+WHAT YOU NEED
+  * obscura v0.2.1+ STEALTH build on PATH   (the plain/lean build gets blocked)
+      https://github.com/h4ckf0r0day/obscura/releases
+      grab the *-stealth.tar.gz archive for your platform
+  * uv on PATH (it auto-installs OpenCC + textual on first run)
+
+KEYS (shown in the footer bar too)
+  n           next chapter          p   previous chapter
+  l           chapter list — opens instantly with a spinner while the list
+              is fetched; cached per book. Esc or q closes it, Enter jumps
+  q           quit
+  ctrl-d/ctrl-u   half page down/up (smooth glide)   arrows / PgUp / PgDn / Home / End
+
+  Built-in messages follow the content: Simplified with -z, Traditional
+  otherwise.
+
+EXAMPLES
+  # browse a book's chapter list, then pick one by number
+  uukanshu --book <ID> --list
+  uukanshu --book <ID> --chapter 6
+
+  # read a specific chapter straight from its URL
+  uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html
+
+  # Simplified Chinese, custom text padding (default: 2 cols / 1 blank line)
+  uukanshu --book <ID> -z
+  uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html --pad 4
+  export UUKANSHU_SIMPLIFIED=1     # -z by default
+  export UUKANSHU_PAD=6            # roomier margins by default
+
+  # dump clean text to stdout instead of launching the reader
+  uukanshu --book <ID> --chapter 6 -z --print > chapter6.txt
+
+TIPS
+  * Textual reflows the text as you resize the terminal — padding stays
+    correct on all four sides. No fixed-width wrapping, so the old less
+    hacks are gone entirely.
+  * If you see "Blocked by Cloudflare", you are using the lean obscura
+    build (rustls TLS fingerprint) — install the -stealth archive.
+  * Book IDs are the number in /book/<ID>/ URLs. Find them by browsing the
+    library (https://uukanshu.cc/class_1_1.html etc.) or searching by title:
+    https://uukanshu.cc/modules/article/search.php?q=<title>
+"""
+import argparse
+import asyncio
+import html
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+from textual import work
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Vertical, VerticalScroll
+from textual.screen import ModalScreen
+from textual.widgets import Footer, Header, LoadingIndicator, OptionList, Static
+from textual.widgets.option_list import Option
+from rich.text import Text
+
+BASE = "https://uukanshu.cc"
+
+
+# ---------------------------------------------------------------- fetching
+
+def fetch(url: str) -> str:
+    """Render a uukanshu page through obscura and return its HTML."""
+    with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+        path = f.name
+    try:
+        r = subprocess.run(
+            ["obscura", "--stealth", "fetch", url,
+             "--dump", "html", "--timeout", "60", "-o", path],
+            capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr.strip() or r.stdout.strip() or "obscura failed")
+        page = open(path, encoding="utf-8", errors="replace").read()
+    finally:
+        os.unlink(path)
+    if "Attention Required" in page or "you have been blocked" in page:
+        raise RuntimeError(
+            "blocked by Cloudflare — install the obscura *stealth* build "
+            "(see uukanshu --help)")
+    return page
+
+
+def absolutize(href: str) -> str:
+    return href if href.startswith("http") else BASE + href
+
+
+def link(page: str, label: str):
+    m = re.search(rf'<a href="([^"]+)"[^>]*>\s*{label}\s*</a>', page)
+    return m and absolutize(m.group(1))
+
+
+def chapter_list(toc_page: str):
+    """Return [(position, chapter_page_id, title, url)] for a book TOC page.
+
+    The TOC page leads with a 'latest updates' block whose chapters also
+    appear in the full ordered list below. Keeping the LAST occurrence of
+    each chapter id positions chapters in reading order.
+    """
+    matches = list(re.finditer(
+        r'href="(/book/(\d+)/(\d+)\.html)"[^>]*>\s*([^<]{1,80}?)\s*</a>',
+        toc_page))
+    last_idx = {}
+    for i, m in enumerate(matches):
+        last_idx[int(m.group(3))] = i
+    out, seen = [], set()
+    for i, m in enumerate(matches):
+        num = int(m.group(3))
+        if num in seen or last_idx[num] != i:
+            continue
+        seen.add(num)
+        out.append((len(out) + 1, num, m.group(4).strip(), BASE + m.group(1)))
+    return out
+
+
+def extract_chapter(page: str, url: str):
+    """Pull book name, chapter title, clean text, and nav links from a page."""
+    t = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S)
+    title = re.sub(r"<[^>]+>", "", t.group(1)).strip() if t else url
+
+    bc = re.findall(r'<a href="(?:https?://[^"]*)?/book/\d+/"[^>]*>([^<]+)</a>',
+                    page)
+    book = bc[-1].strip() if bc else ""
+
+    m = re.search(r'<div class="readcotent[^"]*"[^>]*>(.*)', page, re.S)
+    if not m:
+        raise RuntimeError("could not find chapter content on the page "
+                           "(is this a chapter URL?)")
+    body = m.group(1)
+    body = re.sub(r"<script[^>]*>.*?</script>", "", body, flags=re.S)
+    body = re.sub(r"<br\s*/?>", "\n", body)
+    body = re.sub(r"<[^>]+>", "", body)
+    body = body.replace("&emsp;", "")
+    lines = [l.strip() for l in html.unescape(body).splitlines() if l.strip()]
+    text = "\n\n".join(lines)
+    text = re.split(r"\n*上一章\s+目[录錄]\s+下一章", text)[0].rstrip()
+
+    return (book, title, text,
+            link(page, "上一章"), link(page, "目[录錄]") or link(page, "目录"),
+            link(page, "下一章"))
+
+
+def to_simplified(cc, *strs):
+    return [cc.convert(s).replace("著", "着") for s in strs]
+
+
+# ---------------------------------------------------------------- reader UI
+
+class TocScreen(ModalScreen):
+    """Modal chapter picker: arrows to browse, Enter to jump, Esc to close."""
+
+    CSS = """
+    TocScreen { align: center middle; }
+    #tocbox { width: 80%; height: 90%; border: round $primary;
+              background: $surface; padding: 1 2; }
+    #tochead { height: auto; margin-bottom: 1; text-style: bold; }
+    LoadingIndicator { height: auto; }
+    OptionList { height: 1fr; }
+    """
+    BINDINGS = [
+        Binding("escape", "close", "close", priority=True),
+        Binding("q", "close", "close"),
+        Binding("ctrl+d", "half(1)", "half down", priority=True),
+        Binding("ctrl+u", "half(-1)", "half up", priority=True),
+    ]
+
+    def __init__(self, current_url, ui=None):
+        super().__init__()
+        self.chapters = []
+        self.current_url = current_url
+        self.ui = ui or (lambda s: s)
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="tocbox"):
+            yield Static(self.ui("章节目录 / Chapters — ↑↓/ctrl-d/u · Enter jump · Esc close"),
+                         id="tochead")
+            yield LoadingIndicator(id="tocspin")
+            yield OptionList()
+
+    def on_mount(self) -> None:
+        self.query_one(OptionList).can_focus = True
+        if self.chapters:
+            self._fill(self.chapters)
+
+    def action_half(self, sign: int) -> None:
+        ol = self.query_one(OptionList)
+        step = max(1, ol.container_size.height // 2) * sign
+        ol.scroll_relative(0, step, speed=60, easing="out_quart")
+
+    def populate(self, chapters) -> None:
+        """Safe to call before OR after the modal has mounted."""
+        self.chapters = chapters
+        if self.is_mounted:
+            self._fill(chapters)
+
+    def _fill(self, chapters) -> None:
+        self.query_one("#tocspin", LoadingIndicator).display = False
+        ol = self.query_one(OptionList)
+        ol.clear_options()
+        ol.add_options(
+            Option(f"{pos:>5}  {title}", id=str(pos))
+            for pos, _id, title, _url in chapters)
+        for pos, _id, _t, url in chapters:
+            if url == self.current_url:
+                ol.highlighted = pos - 1
+                break
+        ol.focus()
+
+    def show_error(self, msg: str) -> None:
+        if not self.is_mounted:
+            return
+        self.query_one("#tocspin", LoadingIndicator).display = False
+        self.query_one("#tochead", Static).update(
+            f"[bold red]error:[/] {msg} — Esc/q to close")
+
+    def on_option_list_option_selected(self, event) -> None:
+        pos = int(str(event.option_id))
+        url = next((u for p, _i, _t, u in self.chapters if p == pos), None)
+        self.dismiss(url)
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
+class Reader(App):
+    TITLE = "uukanshu"
+    ENABLE_COMMAND_PALETTE = False
+
+    CSS = """
+    #page { height: 1fr; }
+    #doc { width: 1fr; }
+    """
+
+    BINDINGS = [
+        Binding("n", "next", "next"),
+        Binding("p", "prev", "prev"),
+        Binding("l", "list", "chapters"),
+        Binding("q", "quit", "quit"),
+        Binding("ctrl+d", "half(1)", "half down"),
+        Binding("ctrl+u", "half(-1)", "half up"),
+    ]
+
+    def __init__(self, url: str, cc, pad: int):
+        super().__init__()
+        self.url = url
+        self.cc = cc
+        self.pad = pad
+        self._s2t = None  # lazily built: localize chrome to Traditional when not -z
+        self.next_url = self.prev_url = None
+        m = re.search(r"/book/(\d+)/", url)
+        self.book_id = m.group(1) if m else None
+        self.chapters_cache = None
+        self._cache_book = None
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=False)
+        yield VerticalScroll(Static("", id="doc"), id="page")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        doc = self.query_one("#doc", Static)
+        doc.styles.padding = (self.pad, self.pad)
+        self.load_chapter(self.url)
+
+    def ui(self, s: str) -> str:
+        """Built-in chrome strings are written Simplified; show them
+        Traditional when the reader is displaying Traditional content."""
+        if self.cc is None:
+            if self._s2t is None:
+                try:
+                    import opencc
+                    self._s2t = opencc.OpenCC("s2t")
+                except Exception:
+                    self._s2t = False
+            if self._s2t:
+                s = self._s2t.convert(s)
+        return s
+
+    def action_half(self, sign: int) -> None:
+        page = self.query_one("#page", VerticalScroll)
+        step = max(1, page.container_size.height // 2) * sign
+        page.scroll_relative(0, step, speed=60, easing="out_quart")
+
+    # -- content loading
+
+    @work(exclusive=True, group="nav")
+    async def load_chapter(self, url: str) -> None:
+        doc = self.query_one("#doc", Static)
+        doc.update(self.ui("载入中… loading…"))
+        try:
+            page = await asyncio.to_thread(fetch, url)
+            book, title, text, prev_url, _toc, next_url = extract_chapter(page, url)
+        except Exception as exc:
+            doc.update(f"[bold red]error:[/] {exc}")
+            return
+        if self.cc:
+            book, title, text = to_simplified(self.cc, book, title, text)
+        m = re.search(r"/book/(\d+)/", url)
+        if m:
+            self.book_id = m.group(1)
+        self.prev_url, self.next_url = prev_url, next_url
+        self.title = f"{book} — {title}" if book else title
+        doc.update(Text.assemble(
+            (book + "\n", "bold"),
+            (title + "\n\n", "bold cyan"),
+            (text + "\n", ""),
+        ))
+        self.query_one(VerticalScroll).scroll_home(immediate=True)
+
+    # -- navigation actions
+
+    @property
+    def modal(self) -> bool:
+        return isinstance(self.screen, TocScreen)
+
+    def action_next(self) -> None:
+        if self.modal:
+            return
+        if self.next_url:
+            self.load_chapter(self.next_url)
+        else:
+            self.notify(self.ui("已是最新一章") + " / end of book", severity="warning")
+
+    def action_prev(self) -> None:
+        if self.modal:
+            return
+        if self.prev_url:
+            self.load_chapter(self.prev_url)
+        else:
+            self.notify(self.ui("已是第一章") + " / start of book", severity="warning")
+
+    def action_list(self) -> None:
+        if self.modal:
+            return
+        if not self.book_id:
+            self.notify(self.ui("无法确定书籍ID") + " / unknown book id",
+                        severity="error")
+            return
+        screen = TocScreen(self.url, ui=self.ui)
+        self.push_screen(screen, self.on_toc_choice)
+        if self.chapters_cache and self._cache_book == self.book_id:
+            screen.populate(self.chapters_cache)
+        else:
+            self.fetch_toc(screen)
+
+    @work(exclusive=True, group="toc")
+    async def fetch_toc(self, screen: TocScreen) -> None:
+        """Fill an already-visible TOC modal once its book page has loaded."""
+        book_id = self.book_id
+        try:
+            page = await asyncio.to_thread(fetch, f"{BASE}/book/{book_id}/")
+            chapters = chapter_list(page)
+            if self.cc:
+                conv = to_simplified(self.cc, *[t for _p, _i, t, _u in chapters])
+                chapters = [(p, i, t2, u)
+                            for (p, i, _t, u), t2 in zip(chapters, conv)]
+        except Exception as exc:
+            if self.screen is screen:
+                screen.show_error(str(exc))
+            return
+        self.chapters_cache, self._cache_book = chapters, book_id
+        if self.screen is screen:
+            screen.populate(chapters)
+
+    def on_toc_choice(self, url) -> None:
+        if url:
+            self.url = url
+            self.load_chapter(url)
+
+
+# ---------------------------------------------------------------- CLI
+
+def resolve_start_url(args):
+    if args.url:
+        return args.url
+    if not args.book:
+        sys.exit("error: give a chapter URL or --book <id> (see --help).")
+    page = fetch(f"{BASE}/book/{args.book}/")
+    chapters = chapter_list(page)
+    if not chapters:
+        sys.exit("error: no chapters found on the book page.")
+    idx = max(1, min(args.chapter, len(chapters)))
+    return chapters[idx - 1][3]
+
+
+def main():
+    try:
+        run()
+    except (RuntimeError, OSError) as exc:
+        sys.exit(f"error: {exc}")
+
+
+def run():
+    ap = argparse.ArgumentParser(
+        prog="uukanshu",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=__doc__.strip(),
+    )
+    ap.add_argument("url", nargs="?", help="chapter URL to start at")
+    ap.add_argument("--book", "-b", help="book ID, from /book/<ID>/ URLs")
+    ap.add_argument("--chapter", "-c", type=int, default=1, metavar="N",
+                    help="chapter number from the book TOC (default: 1)")
+    ap.add_argument("--list", "-l", action="store_true",
+                    help="list chapters of --book (plain text) and exit")
+    ap.add_argument("--simplified", "-z", action="store_true",
+                    default=os.environ.get("UUKANSHU_SIMPLIFIED") == "1",
+                    help="convert Traditional -> Simplified Chinese "
+                         "(env UUKANSHU_SIMPLIFIED=1 to default on)")
+    ap.add_argument("--pad", type=int,
+                    default=int(os.environ.get("UUKANSHU_PAD", "2")),
+                    metavar="N",
+                    help="padding around text in the reader: N blank rows top/"
+                         "bottom, N cols left/right (default 2; env "
+                         "UUKANSHU_PAD=N)")
+    ap.add_argument("--print", "-p", action="store_true", dest="plain",
+                    help="print plain text to stdout, no reader UI")
+    args = ap.parse_args()
+
+    cc = None
+    if args.simplified:
+        import opencc
+        cc = opencc.OpenCC("t2s")
+
+    if args.list:
+        if not args.book:
+            sys.exit("error: --list needs --book <id>.")
+        page = fetch(f"{BASE}/book/{args.book}/")
+        chapters = chapter_list(page)
+        for pos, _id, title, _url in chapters:
+            t = to_simplified(cc, title)[0] if cc else title
+            print(f"{pos:>5}  {t}")
+        return
+
+    url = resolve_start_url(args)
+
+    if args.plain:
+        page = fetch(url)
+        book, title, text, *_ = extract_chapter(page, url)
+        if cc:
+            book, title, text = to_simplified(cc, book, title, text)
+        print(f"{book}\n{title}\n\n{text}\n")
+        return
+
+    Reader(url, cc, args.pad).run()
+
+
+if __name__ == "__main__":
+    main()
