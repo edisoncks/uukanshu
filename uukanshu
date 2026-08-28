@@ -26,7 +26,8 @@ KEYS (shown in the footer bar too)
   z           toggle Simplified / Traditional — instantly re-renders the
               chapter text, header title, chapter list, and UI messages
               without refetching
-  t           color theme — cycle night → sepia → paper → matrix
+  t           color theme — cycle night → sepia → paper → catppuccin →
+              tokyo-night → matrix
 
   Built-in messages follow the content's mode; -z starts in Simplified.
 
@@ -44,7 +45,8 @@ EXAMPLES
   export UUKANSHU_SIMPLIFIED=1     # -z by default
   export UUKANSHU_PAD=6            # roomier margins by default
 
-  # color themes: night (default) | sepia | paper | matrix, or cycle with t
+  # color themes: night (default) | sepia | paper | catppuccin |
+  # tokyo-night | matrix, or cycle with t
   uukanshu --book <ID> --theme sepia
   export UUKANSHU_THEME=sepia      # theme by default
 
@@ -110,6 +112,22 @@ READER_THEMES = [
         foreground="#22262b", background="#fbfbf9",
         surface="#f1f1ee", panel="#e9e9e4",
         warning="#a3722a", error="#a03d3d", success="#4a7d4a",
+    ),
+    Theme(
+        name="catppuccin",
+        dark=True,
+        primary="#cba6f7", secondary="#89b4fa", accent="#fab387",
+        foreground="#cdd6f4", background="#1e1e2e",
+        surface="#313244", panel="#181825",
+        warning="#f9e2af", error="#f38ba8", success="#a6e3a1",
+    ),
+    Theme(
+        name="tokyo-night",
+        dark=True,
+        primary="#7aa2f7", secondary="#bb9af7", accent="#ff9e64",
+        foreground="#c0caf5", background="#1a1b26",
+        surface="#292e42", panel="#16161e",
+        warning="#e0af68", error="#f7768e", success="#9ece6a",
     ),
     Theme(
         name="matrix",
