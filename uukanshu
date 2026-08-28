@@ -26,6 +26,7 @@ KEYS (shown in the footer bar too)
   z           toggle Simplified / Traditional — instantly re-renders the
               chapter text, header title, chapter list, and UI messages
               without refetching
+  t           color theme — cycle night → sepia → paper → matrix
 
   Built-in messages follow the content's mode; -z starts in Simplified.
 
@@ -42,6 +43,10 @@ EXAMPLES
   uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html --pad 4
   export UUKANSHU_SIMPLIFIED=1     # -z by default
   export UUKANSHU_PAD=6            # roomier margins by default
+
+  # color themes: night (default) | sepia | paper | matrix, or cycle with t
+  uukanshu --book <ID> --theme sepia
+  export UUKANSHU_THEME=sepia      # theme by default
 
   # dump clean text to stdout instead of launching the reader
   uukanshu --book <ID> --chapter 6 -z --print > chapter6.txt
@@ -70,12 +75,51 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
+from textual.theme import Theme
 from textual.widgets import Footer, Header, LoadingIndicator, OptionList, Static
 from textual.widgets.option_list import Option
 from rich.text import Text
 
 BASE = "https://uukanshu.cc"
 
+# ----------------------------------------------------------------- themes
+
+# Reading-oriented color themes; `night` is the default (most terminals
+# run dark, and Textual offers no light/dark detection to auto-pick).
+READER_THEMES = [
+    Theme(
+        name="night",
+        dark=True,
+        primary="#7d9ac1", secondary="#9a8ec1", accent="#c19a7d",
+        foreground="#c9cfd8", background="#12161d",
+        surface="#181d26", panel="#1a2029",
+        warning="#d8b26a", error="#c96f6f", success="#79b28a",
+    ),
+    Theme(
+        name="sepia",
+        dark=False,
+        primary="#8a5a2b", secondary="#6b6136", accent="#a0672f",
+        foreground="#3b2f22", background="#f4ecd8",
+        surface="#ede1c4", panel="#e7d9b8",
+        warning="#a3722a", error="#a03d3d", success="#5d7d46",
+    ),
+    Theme(
+        name="paper",
+        dark=False,
+        primary="#3a6ea5", secondary="#5a7d5a", accent="#8a6d3b",
+        foreground="#22262b", background="#fbfbf9",
+        surface="#f1f1ee", panel="#e9e9e4",
+        warning="#a3722a", error="#a03d3d", success="#4a7d4a",
+    ),
+    Theme(
+        name="matrix",
+        dark=True,
+        primary="#33ff66", secondary="#1f9d4d", accent="#9d1f6e",
+        foreground="#33ff66", background="#000000",
+        surface="#04140a", panel="#071a0e",
+        warning="#33ffcc", error="#ff3366", success="#33ff66",
+    ),
+]
 
 # ---------------------------------------------------------------- fetching
 
@@ -257,11 +301,15 @@ class Reader(App):
         Binding("p", "prev", "prev"),
         Binding("l", "list", "chapters"),
         Binding("z", "toggle_simplified", "simplified"),
+        Binding("t", "cycle_theme", "theme"),
         Binding("q", "quit", "quit"),
     ]
 
-    def __init__(self, url: str, cc, pad: int):
+    def __init__(self, url: str, cc, pad: int, theme: str = "night"):
         super().__init__()
+        for t in READER_THEMES:
+            self.register_theme(t)
+        self.theme = theme
         self.url = url
         self.pad = pad
         self.simplified = cc is not None
@@ -375,6 +423,11 @@ class Reader(App):
             self.screen.query_one("#tochead", Static).update(
                 self.ui("章节目录 / Chapters — ↑↓/d/u · Enter jump · Esc close"))
 
+    def action_cycle_theme(self) -> None:
+        names = [t.name for t in READER_THEMES]
+        self.theme = names[(names.index(self.theme) + 1) % len(names)]
+        self.notify(self.ui("主题") + f" / theme: {self.theme}")
+
     def _toc_converted(self, chapters):
         """Chapter list with titles converted to the current mode. The
         cache itself stays raw — OpenCC round-trips aren't lossless."""
@@ -462,6 +515,11 @@ def run():
                     help="padding around text in the reader: N blank rows top/"
                          "bottom, N cols left/right (default 2; env "
                          "UUKANSHU_PAD=N)")
+    ap.add_argument("--theme", "-t", choices=[t.name for t in READER_THEMES],
+                    default=os.environ.get("UUKANSHU_THEME", "night"),
+                    metavar="NAME",
+                    help="reader color theme (default: night; env "
+                         "UUKANSHU_THEME=NAME); cycle in-app with t")
     ap.add_argument("--print", "-p", action="store_true", dest="plain",
                     help="print plain text to stdout, no reader UI")
     args = ap.parse_args()
@@ -491,7 +549,7 @@ def run():
         print(f"{book}\n{title}\n\n{text}\n")
         return
 
-    Reader(url, cc, args.pad).run()
+    Reader(url, cc, args.pad, args.theme).run()
 
 
 if __name__ == "__main__":
