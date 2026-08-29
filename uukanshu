@@ -226,13 +226,21 @@ def extract_chapter(page: str, url: str):
         raise RuntimeError("could not find chapter content on the page "
                            "(is this a chapter URL?)")
     body = m.group(1)
+    # Cut at the nav-row container: from the "上一章 / 章节目录 / 下一章"
+    # box to the end of the page it's all UI/footer noise — the keyboard
+    # tip, the copyright blurb, the "Copyright ... TOP↑" footer, and the
+    # GTM iframe/noscript leftovers — never chapter text.
+    body = re.split(r'<div class="mulu-box"', body, maxsplit=1)[0]
     body = re.sub(r"<script[^>]*>.*?</script>", "", body, flags=re.S)
     body = re.sub(r"<br\s*/?>", "\n", body)
     body = re.sub(r"<[^>]+>", "", body)
     body = body.replace("&emsp;", "")
     lines = [l.strip() for l in html.unescape(body).splitlines() if l.strip()]
     text = "\n\n".join(lines)
-    text = re.split(r"\n*上一章\s+目[录錄]\s+下一章", text)[0].rstrip()
+    # Belt-and-braces for pages without the mulu-box container: also cut at
+    # the literal nav row, tolerating the "章节/章節" prefix (simplified /
+    # traditional) that prefixes the link label.
+    text = re.split(r"\n*上一章\s+(?:章节|章節)?目[录錄]\s+下一章", text)[0].rstrip()
 
     return (book, title, text,
             link(page, "上一章"), link(page, "目[录錄]") or link(page, "目录"),
