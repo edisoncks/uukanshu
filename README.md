@@ -1,247 +1,184 @@
 # uukanshu
 
-Read novels from [uukanshu.cc](https://uukanshu.cc) directly in your terminal.
+Read novels from [uukanshu.cc](https://uukanshu.cc) right in your terminal —
+just the story: no ads, no clutter, no pop-ups.
 
-`uukanshu` fetches chapters over plain HTTPS using only the Python standard
-library, strips the page down to just the chapter text, optionally converts
-Traditional → Simplified Chinese via [OpenCC](https://github.com/BYVoid/OpenCC),
-and presents it in a clean, CJK-aware reading pane built with
-[Textual](https://github.com/Textualize/textual).
-
----
-
-## Features
-
-- 📖 **Comfortable reader UI** — reflowing text with CJK-aware padding that
-  stays correct on all four sides, even as you resize the terminal
-- 🧭 **In-app navigation** — jump between chapters, or browse the full
-  chapter list with a searchable, instantly-opening picker
-- 🀄 **Simplified / Traditional toggle** — convert the entire chapter (text,
-  titles, and UI) on the fly, without refetching
-- 🎨 **8 color themes** — night, sepia, paper, three Catppuccin variants,
-  Tokyo Night, and Matrix
-- 🖨️ **Plain-text mode** — dump a clean chapter to stdout for piping or saving
-- 📦 **Easy install** — one command installs the `uukanshu` command and its
-  dependencies via [`uv`](https://docs.astral.sh/uv/), on any platform
-- 🚢 **Standalone binaries** — single-file executables (no Python needed) for
-  Linux, macOS, and Windows from the
-  [Releases](https://github.com/<you>/uukanshu/releases) page
-- 🌍 **Cross-platform** — no external fetch binaries; anything that runs Python can run `uukanshu`
+- 📖 A clean, comfortable reading view that reflows as you resize the window
+- 🧭 Jump between chapters, or browse the full chapter list
+- 🀄 Optional conversion of Traditional → Simplified Chinese, on the fly
+- 🎨 8 color themes (night, sepia, paper, Catppuccin, Tokyo Night, Matrix)
 
 ---
 
-## Requirements
+## Quick Start
 
-| Dependency                           | Why                                                           | Notes                                   |
-| ------------------------------------ | ------------------------------------------------------------- | --------------------------------------- |
-| **Python ≥ 3.10**                    | Runs the app (source installs only)                           | Fetching uses only the standard library |
-| **[uv](https://docs.astral.sh/uv/)** | Installs the CLI and manages dependencies (`uv tool install`) | Must be on `PATH`                       |
+### 1. Download
 
-> **No Python? No problem.** Prebuilt single-file binaries are available on
-> the [Releases](https://github.com/<you>/uukanshu/releases) page — see
-> [Getting Started](#getting-started).
+Grab one file from the
+[Releases page](https://github.com/edisoncks/uukanshu/releases/latest) —
+no installation needed:
 
-## Getting Started
+| Your computer           | File                          |
+| ----------------------- | ----------------------------- |
+| Mac (M1 / M2 / M3 / M4) | `uukanshu-macos-arm64`        |
+| Windows 64-bit          | `uukanshu-windows-x86_64.exe` |
+| Linux 64-bit            | `uukanshu-linux-x86_64`       |
 
-Two ways in: download a **prebuilt binary** (nothing to install), or install
-the CLI with **uv**.
+### 2. Run it
 
-### Option A — prebuilt binary (no Python needed)
+#### Windows
 
-1. Download the file for your platform from the
-   [Releases](https://github.com/<you>/uukanshu/releases) page:
-   `uukanshu-linux-x86_64`, `uukanshu-macos-arm64`, or
-   `uukanshu-windows-x86_64.exe`.
-2. Make it executable and put it on your `PATH` (Linux/macOS):
+1. Open **PowerShell** (press Start, type "PowerShell", press Enter).
+2. Go to your Downloads folder:
 
-   ```sh
-   mv uukanshu-linux-x86_64 ~/.local/bin/uukanshu
-   chmod +x ~/.local/bin/uukanshu
+   ```powershell
+   cd $env:USERPROFILE\Downloads
    ```
 
-   On Windows, just place `uukanshu-windows-x86_64.exe` somewhere on `PATH`.
+3. Start reading (paste any chapter's web address after the program name):
 
-3. The binaries are not code-signed, so expect a one-time OS prompt:
+   ```powershell
+   .\uukanshu-windows-x86_64.exe https://uukanshu.cc/book/18957/11326074.html
+   ```
 
-   - **macOS Gatekeeper:** `xattr -d com.apple.quarantine uukanshu`, or
-     right-click the binary → _Open_ on first launch
-   - **Windows SmartScreen:** _More info_ → _Run anyway_
+4. The first time, Windows shows **"Windows protected your PC"** — click
+   **More info → Run anyway**. This appears only because the app isn't
+   code-signed; it happens once.
 
-### Option B — install with uv
+#### Mac (Apple Silicon)
 
-### 1. Install uv
+1. Open **Terminal** (press ⌘-Space, type "Terminal", press Enter).
+2. Go to your Downloads folder and allow the file to run:
+
+   ```sh
+   cd ~/Downloads
+   chmod +x uukanshu-macos-arm64
+   ```
+
+3. Start reading:
+
+   ```sh
+   ./uukanshu-macos-arm64 https://uukanshu.cc/book/18957/11326074.html
+   ```
+
+4. If macOS refuses to open it ("cannot verify the developer"): open
+   **System Settings → Privacy & Security**, scroll to **Security**, and
+   click **Open Anyway**. This is needed once.
+
+#### Linux
+
+1. Open a terminal.
+2. Go to your Downloads folder and allow the file to run:
+
+   ```sh
+   cd ~/Downloads
+   chmod +x uukanshu-linux-x86_64
+   ```
+
+3. Start reading:
+
+   ```sh
+   ./uukanshu-linux-x86_64 https://uukanshu.cc/book/18957/11326074.html
+   ```
+
+### 3. Pick something to read
+
+The easiest way: open [uukanshu.cc](https://uukanshu.cc) in your browser,
+open any book, copy a chapter's web address from the address bar, and paste
+it after the program name (in quotes).
+
+Alternatively, use the **book ID** — the number in a book's web address, e.g.
+`18957` in `uukanshu.cc/book/`**`18957`**`/`:
 
 ```sh
-curl -LsSf https://astral.sh/uv/install.sh | sh
+uukanshu --book 18957                    # open chapter 1
+uukanshu --book 18957 --chapter 6        # open chapter 6
+uukanshu --book 18957 --list             # just show all chapter titles
 ```
 
-See the [uv docs](https://docs.astral.sh/uv/getting-started/installation/) for
-other platforms (Windows:
-`powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`).
+You can browse the whole library at <https://uukanshu.cc/class_1_1.html> or
+search by title: `https://uukanshu.cc/modules/article/search.php?q=<title>`.
 
-### 2. Install uukanshu
+---
 
-From a local clone:
+## While reading
 
-```sh
-git clone https://github.com/<you>/uukanshu && cd uukanshu
-uv tool install .
-```
+| Key                             | What it does                                                 |
+| ------------------------------- | ------------------------------------------------------------ |
+| <kbd>n</kbd> / <kbd>p</kbd>     | Next / previous chapter                                      |
+| <kbd>l</kbd>                    | Chapter list — <kbd>Enter</kbd> jumps, <kbd>Esc</kbd> closes |
+| <kbd>d</kbd> / <kbd>u</kbd>     | Half a page down / up                                        |
+| Arrow keys, PgUp/PgDn, Home/End | Scroll                                                       |
+| <kbd>z</kbd>                    | Switch between Traditional and Simplified Chinese            |
+| <kbd>t</kbd> / <kbd>T</kbd>     | Change the color theme                                       |
+| <kbd>q</kbd>                    | Quit                                                         |
 
-…or straight from git, without cloning:
+---
 
-```sh
-uv tool install git+https://github.com/<you>/uukanshu
-```
-
-`uv` places a `uukanshu` command on your `PATH` (run `uv tool update-shell`
-once if your shell can't find it).
-
-### Read something
-
-```sh
-# Browse a book's chapter list, then pick one by number
-uukanshu --book <ID> --list
-uukanshu --book <ID> --chapter 6
-
-# Or jump straight to a chapter by URL
-uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html
-```
-
-**Finding a book ID:** the ID is the number in `/book/<ID>/` URLs. Browse
-the library (e.g. <https://uukanshu.cc/class_1_1.html>) or search by title:
+## Options
 
 ```txt
-https://uukanshu.cc/modules/article/search.php?q=<title>
+uukanshu [chapter URL] [options]
 ```
 
----
+| Option               | What it does                                                  |
+| -------------------- | ------------------------------------------------------------- |
+| `URL`                | Chapter web address to open directly                          |
+| `-b`, `--book <ID>`  | Open a book by its ID (default: chapter 1)                    |
+| `-c`, `--chapter N`  | Which chapter to open (default: 1)                            |
+| `-l`, `--list`       | Show the chapter titles and exit                              |
+| `-z`, `--simplified` | Show Simplified Chinese instead of Traditional                |
+| `--pad N`            | Roomier margins (default: 2)                                  |
+| `-t`, `--theme NAME` | Start with a color theme (default: `night`)                   |
+| `-p`, `--print`      | Print the chapter as plain text instead of opening the reader |
+| `--version`          | Show the version and exit                                     |
 
-## Usage
+**Themes:** `night` · `sepia` · `paper` · `catppuccin-frappe` ·
+`catppuccin-macchiato` · `catppuccin-mocha` · `tokyo-night` · `matrix`
 
-```txt
-uukanshu [URL] [options]
+Save a chapter as a text file:
+
+```powershell
+.\uukanshu-windows-x86_64.exe --book 18957 --chapter 6 -z --print > chapter6.txt
 ```
-
-| Option               | Description                                                                      |
-| -------------------- | -------------------------------------------------------------------------------- |
-| `URL`                | Chapter URL to open directly                                                     |
-| `-b`, `--book <ID>`  | Book ID (the number from `/book/<ID>/` URLs)                                     |
-| `-c`, `--chapter N`  | Chapter number from the book's TOC (default: 1)                                  |
-| `-l`, `--list`       | List the book's chapters as plain text and exit                                  |
-| `-z`, `--simplified` | Convert Traditional → Simplified Chinese                                         |
-| `--pad N`            | Padding around the text: N blank rows top/bottom, N cols left/right (default: 2) |
-| `-t`, `--theme NAME` | Reader color theme (default: `night`)                                            |
-| `-p`, `--print`      | Print clean text to stdout instead of opening the reader                         |
-| `--version`          | Print the version and exit                                                       |
-
-### Examples
-
-```sh
-# Simplified Chinese
-uukanshu --book <ID> -z
-
-# Roomier margins
-uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html --pad 4
-
-# Start in the sepia theme
-uukanshu --book <ID> --theme sepia
-
-# Save a chapter as clean text
-uukanshu --book <ID> --chapter 6 -z --print > chapter6.txt
-```
-
----
-
-## Reader Keybindings
-
-All keys are also shown in the footer bar while reading.
-
-| Key                                                                                      | Action                                                                                                                                  |
-| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| <kbd>n</kbd> / <kbd>p</kbd>                                                              | Next / previous chapter                                                                                                                 |
-| <kbd>l</kbd>                                                                             | Chapter list — opens instantly with a spinner while the list is fetched; <kbd>Enter</kbd> jumps, <kbd>Esc</kbd> or <kbd>q</kbd> closes  |
-| <kbd>d</kbd> / <kbd>u</kbd>                                                              | Half-page down / up (smooth glide)                                                                                                      |
-| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>Home</kbd> <kbd>End</kbd> | Standard scrolling                                                                                                                      |
-| <kbd>z</kbd>                                                                             | Toggle Simplified / Traditional — instantly re-renders the chapter text, header title, chapter list, and UI messages without refetching |
-| <kbd>t</kbd> / <kbd>T</kbd>                                                              | Cycle color themes forward / backward                                                                                                   |
-| <kbd>q</kbd>                                                                             | Quit                                                                                                                                    |
-
----
-
-## Themes
-
-Cycle in-app with <kbd>t</kbd>, or set one at launch with `--theme`:
-
-`night` (default) · `sepia` · `paper` · `catppuccin-frappe` · `catppuccin-macchiato` · `catppuccin-mocha` · `tokyo-night` · `matrix`
-
----
-
-## Environment Variables
-
-| Variable                | Effect                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| `COLORTERM=truecolor`   | Enable 24-bit truecolor so themes render with their exact hex colors (see note below) |
-| `UUKANSHU_SIMPLIFIED=1` | Start with Simplified Chinese enabled (same as `-z`)                                  |
-| `UUKANSHU_PAD=N`        | Default text padding (same as `--pad N`)                                              |
-| `UUKANSHU_THEME=NAME`   | Default color theme (same as `--theme NAME`)                                          |
-
-Example:
-
-```sh
-export UUKANSHU_SIMPLIFIED=1
-export UUKANSHU_PAD=6            # roomier margins by default
-export UUKANSHU_THEME=sepia
-```
-
-### Truecolor note
-
-The built-in themes are defined with exact hex colors. Most modern terminal
-emulators (iTerm2, Windows Terminal, kitty, Alacritty, GNOME Terminal, etc.)
-report truecolor support automatically, but if colors look washed out or
-bands of them seem approximated, your terminal may not be advertising it.
-Force 24-bit color with:
-
-```sh
-export COLORTERM=truecolor
-```
-
-Without it, Textual falls back to the 256-color palette and approximates
-the theme colors — most visible on subtle themes like `sepia` and `paper`.
-
----
-
-## Updating & Uninstalling
-
-```sh
-uv tool upgrade uukanshu      # after pulling new commits / a new release
-uv tool uninstall uukanshu
-```
-
-To build a binary yourself (any platform, on that platform):
-
-```sh
-uv run --with pyinstaller --with . pyinstaller uukanshu.spec --noconfirm
-# → dist/uukanshu (dist/uukanshu.exe on Windows)
-```
-
-Maintainers: how releases are cut and binaries published — see
-[RELEASING.md](RELEASING.md).
 
 ---
 
 ## Troubleshooting
 
-**"failed to fetch …"** — transient network errors are retried automatically,
-but if it keeps failing, check your connection (or whether uukanshu.cc is
-up). If you see **"blocked by Cloudflare"**, try again later or from a
-different network.
+**"Windows protected your PC" / macOS "cannot verify the developer"** — the
+binaries are not code-signed. On Windows: **More info → Run anyway**. On Mac:
+**System Settings → Privacy & Security → Open Anyway**, or run
+`xattr -d com.apple.quarantine <file>` in Terminal. Each happens once.
 
-**`uukanshu: command not found`** — run `uv tool update-shell`, then restart
-your shell (or add `$(uv tool dir --bin)` to `PATH` yourself).
+**"failed to fetch …"** — short network hiccups are retried automatically.
+If it keeps failing, check your connection or try again later. If you see
+**"blocked by Cloudflare"**, try again later or from a different network.
 
-**`error: give a chapter URL or --book <id>`** — you need to pass either a
-chapter URL or `--book <ID>`. Run `uukanshu --help` for all options.
+**"error: give a chapter URL or --book <id>"** — you need to tell uukanshu
+what to read: paste a chapter's web address, or use `--book <ID>`.
 
-**Chapter content not found** — make sure the URL points to a chapter
-(`/book/<ID>/<CHAPTER>.html`), not the book's index page.
+**"could not find chapter content"** — the web address must point to a
+**chapter** (`…/book/<ID>/<CHAPTER>.html`), not the book's index page.
+
+**Colors look washed out** — your terminal may not be using full color. Try
+setting `COLORTERM=truecolor` before starting (PowerShell:
+`$env:COLORTERM="truecolor"`).
+
+---
+
+## Updating
+
+Download the newest file from the
+[Releases page](https://github.com/edisoncks/uukanshu/releases/latest) and
+replace your old one. Your settings aren't stored anywhere, so nothing else
+to do.
+
+---
+
+## For developers
+
+Developers can also run uukanshu straight from Python source with
+[`uv`](https://docs.astral.sh/uv/) (`uv tool install .` — no binary
+involved), build the binaries, and cut releases. See
+[DEVELOPING.md](DEVELOPING.md).

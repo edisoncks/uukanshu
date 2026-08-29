@@ -106,4 +106,6 @@ uv run --with pyinstaller --with . pyinstaller uukanshu.spec --noconfirm
 - They are **not code-signed**: macOS Gatekeeper and Windows SmartScreen will
   warn on first launch. See the README's [Getting Started](README.md) for the
   end-user workarounds, or sign/notarize with paid developer accounts if that
-  ever becomes worth it.
+  ever becomes worth it. Users see a one-time Gatekeeper/SmartScreen prompt;
+  the README's [Troubleshooting](README.md#troubleshooting) covers the
+  workarounds.
