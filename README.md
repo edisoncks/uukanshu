@@ -18,11 +18,14 @@ Grab one file from the
 [Releases page](https://github.com/edisoncks/uukanshu/releases/latest) —
 no installation needed:
 
-| Your computer           | File                          |
-| ----------------------- | ----------------------------- |
-| Mac (M1 / M2 / M3 / M4) | `uukanshu-macos-arm64`        |
-| Windows 64-bit          | `uukanshu-windows-x86_64.exe` |
-| Linux 64-bit            | `uukanshu-linux-x86_64`       |
+Download the file for your computer and **rename it** as shown — this makes
+every command below shorter:
+
+| Your computer           | Download this asset           | Rename it to   |
+| ----------------------- | ----------------------------- | -------------- |
+| Mac (M1 / M2 / M3 / M4) | `uukanshu-macos-arm64`        | `uukanshu`     |
+| Windows 64-bit          | `uukanshu-windows-x86_64.exe` | `uukanshu.exe` |
+| Linux 64-bit            | `uukanshu-linux-x86_64`       | `uukanshu`     |
 
 ### 2. Run it
 
@@ -35,10 +38,11 @@ no installation needed:
    cd $env:USERPROFILE\Downloads
    ```
 
-3. Start reading (paste any chapter's web address after the program name):
+3. Start reading (paste any chapter's or book's web address after the
+   program name):
 
    ```powershell
-   .\uukanshu-windows-x86_64.exe https://uukanshu.cc/book/18957/11326074.html
+   .\uukanshu.exe https://uukanshu.cc/book/18957/
    ```
 
 4. The first time, Windows shows **"Windows protected your PC"** — click
@@ -52,13 +56,13 @@ no installation needed:
 
    ```sh
    cd ~/Downloads
-   chmod +x uukanshu-macos-arm64
+   chmod +x uukanshu
    ```
 
 3. Start reading:
 
    ```sh
-   ./uukanshu-macos-arm64 https://uukanshu.cc/book/18957/11326074.html
+   ./uukanshu https://uukanshu.cc/book/18957/
    ```
 
 4. If macOS refuses to open it ("cannot verify the developer"): open
@@ -72,28 +76,30 @@ no installation needed:
 
    ```sh
    cd ~/Downloads
-   chmod +x uukanshu-linux-x86_64
+   chmod +x uukanshu
    ```
 
 3. Start reading:
 
    ```sh
-   ./uukanshu-linux-x86_64 https://uukanshu.cc/book/18957/11326074.html
+   ./uukanshu https://uukanshu.cc/book/18957/
    ```
 
 ### 3. Pick something to read
 
 The easiest way: open [uukanshu.cc](https://uukanshu.cc) in your browser,
-open any book, copy a chapter's web address from the address bar, and paste
-it after the program name (in quotes).
+find a book you like, copy its **book address** from the address bar (it
+looks like `https://uukanshu.cc/book/18957/`), and paste it after the
+program name — reading starts at chapter 1.
 
-Alternatively, use the **book ID** — the number in a book's web address, e.g.
-`18957` in `uukanshu.cc/book/`**`18957`**`/`:
+You can also paste a **chapter's** web address to jump straight there, or
+use the **book ID** — the number in the book's address (here `18957`):
 
 ```sh
 uukanshu --book 18957                    # open chapter 1
 uukanshu --book 18957 --chapter 6        # open chapter 6
 uukanshu --book 18957 --list             # just show all chapter titles
+uukanshu https://uukanshu.cc/book/18957/ --chapter 6   # same, via URL
 ```
 
 You can browse the whole library at <https://uukanshu.cc/class_1_1.html> or
@@ -139,7 +145,7 @@ uukanshu [chapter URL] [options]
 Save a chapter as a text file:
 
 ```powershell
-.\uukanshu-windows-x86_64.exe --book 18957 --chapter 6 -z --print > chapter6.txt
+.\uukanshu.exe --book 18957 --chapter 6 -z --print > chapter6.txt
 ```
 
 ---
