@@ -573,7 +573,20 @@ def resolve_start_url(args):
     return chapters[idx - 1][3]
 
 
+def _force_utf8_stdio():
+    """Windows consoles default to a legacy codepage (e.g. cp1252) that
+    cannot encode the help text (→, CJK) or novel content; force UTF-8."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if stream is not None and stream.encoding.lower() not in (
+                    "utf-8", "utf8"):
+                stream.reconfigure(encoding="utf-8")
+        except (AttributeError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdio()
     try:
         run()
     except (RuntimeError, OSError) as exc:
