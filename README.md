@@ -21,17 +21,18 @@ and presents it in a clean, CJK-aware reading pane built with
 - 🎨 **8 color themes** — night, sepia, paper, three Catppuccin variants,
   Tokyo Night, and Matrix
 - 🖨️ **Plain-text mode** — dump a clean chapter to stdout for piping or saving
-- 🚀 **Zero-install Python deps** — fetching needs only the standard library; dependencies auto-install on first run via [`uv`](https://docs.astral.sh/uv/)
+- 📦 **Easy install** — one command installs the `uukanshu` command and its
+  dependencies via [`uv`](https://docs.astral.sh/uv/), on any platform
 - 🌍 **Cross-platform** — no external fetch binaries; anything that runs Python can run `uukanshu`
 
 ---
 
 ## Requirements
 
-| Dependency                                                                             | Why                                                                    | Notes                                                                                         |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Python ≥ 3.10**    | Runs the script                                                        | Fetching uses only the standard library                                                       |
-| **[uv](https://docs.astral.sh/uv/)** | Runs the script and auto-installs `OpenCC` + `textual` on first launch | Must be on `PATH`                                                                             |
+| Dependency                           | Why                                                           | Notes                                   |
+| ------------------------------------ | ------------------------------------------------------------- | --------------------------------------- |
+| **Python ≥ 3.10**                    | Runs the app                                                  | Fetching uses only the standard library |
+| **[uv](https://docs.astral.sh/uv/)** | Installs the CLI and manages dependencies (`uv tool install`) | Must be on `PATH`                       |
 
 ---
 
@@ -44,20 +45,36 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 See the [uv docs](https://docs.astral.sh/uv/getting-started/installation/) for
-other platforms.
+other platforms (Windows:
+`powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`).
 
-### 2. Read something
+### 2. Install uukanshu
 
-Clone or download this repository, then run the script directly — `uv`
-handles everything else on first launch:
+From a local clone:
+
+```sh
+git clone https://github.com/<you>/uukanshu && cd uukanshu
+uv tool install .
+```
+
+…or straight from git, without cloning:
+
+```sh
+uv tool install git+https://github.com/<you>/uukanshu
+```
+
+`uv` places a `uukanshu` command on your `PATH` (run `uv tool update-shell`
+once if your shell can't find it).
+
+### 3. Read something
 
 ```sh
 # Browse a book's chapter list, then pick one by number
-./uukanshu --book <ID> --list
-./uukanshu --book <ID> --chapter 6
+uukanshu --book <ID> --list
+uukanshu --book <ID> --chapter 6
 
 # Or jump straight to a chapter by URL
-./uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html
+uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html
 ```
 
 **Finding a book ID:** the ID is the number in `/book/<ID>/` URLs. Browse
@@ -90,16 +107,16 @@ uukanshu [URL] [options]
 
 ```sh
 # Simplified Chinese
-./uukanshu --book <ID> -z
+uukanshu --book <ID> -z
 
 # Roomier margins
-./uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html --pad 4
+uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html --pad 4
 
 # Start in the sepia theme
-./uukanshu --book <ID> --theme sepia
+uukanshu --book <ID> --theme sepia
 
 # Save a chapter as clean text
-./uukanshu --book <ID> --chapter 6 -z --print > chapter6.txt
+uukanshu --book <ID> --chapter 6 -z --print > chapter6.txt
 ```
 
 ---
@@ -162,6 +179,15 @@ the theme colors — most visible on subtle themes like `sepia` and `paper`.
 
 ---
 
+## Updating & Uninstalling
+
+```sh
+uv tool upgrade uukanshu      # after pulling new commits / a new release
+uv tool uninstall uukanshu
+```
+
+---
+
 ## Troubleshooting
 
 **"failed to fetch …"** — transient network errors are retried automatically,
@@ -169,8 +195,11 @@ but if it keeps failing, check your connection (or whether uukanshu.cc is
 up). If you see **"blocked by Cloudflare"**, try again later or from a
 different network.
 
+**`uukanshu: command not found`** — run `uv tool update-shell`, then restart
+your shell (or add `$(uv tool dir --bin)` to `PATH` yourself).
+
 **`error: give a chapter URL or --book <id>`** — you need to pass either a
-chapter URL or `--book <ID>`. Run `./uukanshu --help` for all options.
+chapter URL or `--book <ID>`. Run `uukanshu --help` for all options.
 
 **Chapter content not found** — make sure the URL points to a chapter
 (`/book/<ID>/<CHAPTER>.html`), not the book's index page.
