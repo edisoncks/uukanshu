@@ -1,0 +1,77 @@
+name: release
+
+# Build standalone uukanshu binaries for every platform and attach them to a
+# GitHub Release. PyInstaller cannot cross-compile, so each artifact is built
+# on a matching runner (ubuntu → linux-x86_64, macos → macos-arm64, windows →
+# windows-x86_64). Triggered by pushing a v* tag, or manually.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: uukanshu-linux-x86_64
+          - os: macos-latest
+            asset: uukanshu-macos-arm64
+          - os: windows-latest
+            asset: uukanshu-windows-x86_64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project and PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . pyinstaller
+
+      - name: Build binary
+        run: pyinstaller uukanshu.spec --noconfirm
+
+      - name: Rename binary
+        shell: bash
+        run: mv dist/uukanshu* "dist/${{ matrix.asset }}"
+
+      - name: Smoke test binary
+        shell: bash
+        run: "dist/${{ matrix.asset }} --help > /dev/null && echo 'smoke test OK'"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    name: Attach binaries to GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release and upload binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "${GITHUB_REF_NAME}" --generate-notes
