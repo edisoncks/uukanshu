@@ -28,17 +28,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6
+      # Build with the uv-managed Python toolchain. The binary's TLS
+      # fingerprint differs between Python builds, and Cloudflare blocks
+      # some of them — use the same toolchain the local builds are
+      # verified with (see RELEASING.md).
+      - uses: astral-sh/setup-uv@v10
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
       - name: Install project and PyInstaller
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install . pyinstaller
+        run: uv sync --frozen --group build
 
       - name: Build binary
-        run: pyinstaller uukanshu.spec --noconfirm
+        run: uv run --no-sync pyinstaller uukanshu.spec --noconfirm
 
       - name: Rename binary
         shell: bash
