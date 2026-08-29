@@ -224,6 +224,9 @@ uv run --with pyinstaller --with . pyinstaller uukanshu.spec --noconfirm
 # → dist/uukanshu (dist/uukanshu.exe on Windows)
 ```
 
+Maintainers: how releases are cut and binaries published — see
+[RELEASING.md](RELEASING.md).
+
 ---
 
 ## Troubleshooting
