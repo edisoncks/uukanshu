@@ -11,6 +11,7 @@ WHAT YOU NEED
     OpenCC + textual are installed with the package (and are bundled into
     the standalone release binaries).
 
+
 KEYS (shown in the footer bar too)
   n           next chapter          p   previous chapter
   l           chapter list — opens instantly with a spinner while the list
@@ -60,6 +61,9 @@ TIPS
     library (https://uukanshu.cc/class_1_1.html etc.) or searching by title:
     https://uukanshu.cc/modules/article/search.php?q=<title>
 """
+
+__version__ = "0.1.0"
+
 import argparse
 import asyncio
 import gzip
@@ -582,6 +586,8 @@ def run():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=__doc__.strip(),
     )
+    ap.add_argument("--version", action="version",
+                    version=f"uukanshu {__version__}")
     ap.add_argument("url", nargs="?", help="chapter URL to start at")
     ap.add_argument("--book", "-b", help="book ID, from /book/<ID>/ URLs")
     ap.add_argument("--chapter", "-c", type=int, default=1, metavar="N",

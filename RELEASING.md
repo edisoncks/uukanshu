@@ -15,12 +15,14 @@ is just a git tag.
 
 ### 1. Bump the version
 
-The version lives in [`pyproject.toml`](pyproject.toml). Keep the tag and the
-version in sync:
+The version lives in one place: `__version__` at the top of
+[`src/uukanshu/__init__.py`](src/uukanshu/__init__.py) — `pyproject.toml`
+reads it from there (hatchling), and `uukanshu --version` prints it. Keep the
+tag in sync:
 
 ```sh
-# edit project.version in pyproject.toml, then:
-git add pyproject.toml
+# edit __version__ in src/uukanshu/__init__.py, then:
+git add src/uukanshu/__init__.py
 git commit -m "chore: bump version to X.Y.Z"
 ```
 

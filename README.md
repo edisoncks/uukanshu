@@ -133,6 +133,7 @@ uukanshu [URL] [options]
 | `--pad N`            | Padding around the text: N blank rows top/bottom, N cols left/right (default: 2) |
 | `-t`, `--theme NAME` | Reader color theme (default: `night`)                                            |
 | `-p`, `--print`      | Print clean text to stdout instead of opening the reader                         |
+| `--version`          | Print the version and exit                                                       |
 
 ### Examples
 
