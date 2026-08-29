@@ -70,6 +70,7 @@ import gzip
 import html
 import os
 import re
+import ssl
 import sys
 import time
 import urllib.error
@@ -173,6 +174,14 @@ HEADERS = {
     "Upgrade-Insecure-Requests": "1",
 }
 
+# Frozen binaries (PyInstaller) don't see the system CA store reliably;
+# prefer certifi's bundled roots, fall back to the system default.
+try:
+    import certifi
+    _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+    _SSL_CONTEXT = ssl.create_default_context()
+
 
 def fetch(url: str) -> str:
     """Fetch a uukanshu page over plain HTTPS and return its HTML."""
@@ -181,7 +190,8 @@ def fetch(url: str) -> str:
     for attempt in range(3):
         try:
             req = urllib.request.Request(url, headers=HEADERS)
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with urllib.request.urlopen(req, timeout=30,
+                                        context=_SSL_CONTEXT) as r:
                 body = r.read()
             if r.headers.get("Content-Encoding") == "gzip":
                 body = gzip.decompress(body)

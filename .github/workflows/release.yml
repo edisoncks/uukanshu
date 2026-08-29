@@ -46,7 +46,10 @@ jobs:
 
       - name: Smoke test binary
         shell: bash
-        run: "dist/${{ matrix.asset }} --help > /dev/null && echo 'smoke test OK'"
+        run: |
+          dist/${{ matrix.asset }} --version
+          dist/${{ matrix.asset }} --book 18957 --list > /dev/null
+          echo 'smoke test OK'
 
       - uses: actions/upload-artifact@v6
         with:
