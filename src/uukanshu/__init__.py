@@ -1,8 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["OpenCC", "textual >=0.86"]
-# ///
 """uukanshu — read novels from uukanshu.cc in your terminal.
 
 Fetches chapters over plain HTTPS using only the Python standard library,
@@ -12,8 +7,9 @@ reading pane: CJK-aware reflowing padding, live resize, and in-app
 chapter navigation.
 
 WHAT YOU NEED
-  * Python 3.10+ — fetching needs nothing beyond the standard library
-  * uv on PATH (it auto-installs OpenCC + textual on first run)
+  * Nothing but Python 3.10+ — fetching uses only the standard library;
+    OpenCC + textual are installed with the package (and are bundled into
+    the standalone release binaries).
 
 KEYS (shown in the footer bar too)
   n           next chapter          p   previous chapter
