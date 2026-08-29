@@ -32,6 +32,9 @@ EXAMPLES
   uukanshu --book <ID> --list
   uukanshu --book <ID> --chapter 6
 
+  # start a book from its address (opens chapter 1)
+  uukanshu https://uukanshu.cc/book/<ID>/
+
   # read a specific chapter straight from its URL
   uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html
 
@@ -570,7 +573,21 @@ class Reader(App):
 
 # ---------------------------------------------------------------- CLI
 
+def book_url_from_arg(url: str):
+    """Return the book index URL if `url` is one (e.g. .../book/123/ or
+    .../book/123/index.html), else None. Chapter URLs never match."""
+    m = re.fullmatch(rf"{BASE}/book/(\d+)/?(?:index\.html)?", url or "")
+    return f"{BASE}/book/{m.group(1)}/" if m else None
+
+
 def resolve_start_url(args):
+    book_url = book_url_from_arg(args.url)
+    if book_url:
+        chapters = chapter_list(fetch(book_url))
+        if not chapters:
+            sys.exit(f"error: no chapters found at {book_url}.")
+        idx = max(1, min(args.chapter, len(chapters)))
+        return chapters[idx - 1][3]
     if args.url:
         return args.url
     if not args.book:
@@ -611,7 +628,7 @@ def run():
     )
     ap.add_argument("--version", action="version",
                     version=f"uukanshu {__version__}")
-    ap.add_argument("url", nargs="?", help="chapter URL to start at")
+    ap.add_argument("url", nargs="?", help="chapter or book URL to start at")
     ap.add_argument("--book", "-b", help="book ID, from /book/<ID>/ URLs")
     ap.add_argument("--chapter", "-c", type=int, default=1, metavar="N",
                     help="chapter number from the book TOC (default: 1)")
@@ -642,9 +659,10 @@ def run():
         cc = opencc.OpenCC("t2s")
 
     if args.list:
-        if not args.book:
-            sys.exit("error: --list needs --book <id>.")
-        page = fetch(f"{BASE}/book/{args.book}/")
+        book_url = book_url_from_arg(args.url)
+        if not book_url and not args.book:
+            sys.exit("error: --list needs a book URL or --book <id>.")
+        page = fetch(book_url or f"{BASE}/book/{args.book}/")
         chapters = chapter_list(page)
         for pos, _id, title, _url in chapters:
             t = to_simplified(cc, title)[0] if cc else title

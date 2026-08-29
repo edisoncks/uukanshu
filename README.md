@@ -121,17 +121,17 @@ search by title: `https://uukanshu.cc/modules/article/search.php?q=<title>`.
 uukanshu [chapter URL] [options]
 ```
 
-| Option               | What it does                                                  |
-| -------------------- | ------------------------------------------------------------- |
-| `URL`                | Chapter web address to open directly                          |
-| `-b`, `--book <ID>`  | Open a book by its ID (default: chapter 1)                    |
-| `-c`, `--chapter N`  | Which chapter to open (default: 1)                            |
-| `-l`, `--list`       | Show the chapter titles and exit                              |
-| `-z`, `--simplified` | Show Simplified Chinese instead of Traditional                |
-| `--pad N`            | Roomier margins (default: 2)                                  |
-| `-t`, `--theme NAME` | Start with a color theme (default: `night`)                   |
-| `-p`, `--print`      | Print the chapter as plain text instead of opening the reader |
-| `--version`          | Show the version and exit                                     |
+| Option               | What it does                                                               |
+| -------------------- | -------------------------------------------------------------------------- |
+| `URL`                | Chapter web address to open, **or** a book's address to start at chapter 1 |
+| `-b`, `--book <ID>`  | Open a book by its ID (default: chapter 1)                                 |
+| `-c`, `--chapter N`  | Which chapter to open (default: 1)                                         |
+| `-l`, `--list`       | Show the chapter titles and exit                                           |
+| `-z`, `--simplified` | Show Simplified Chinese instead of Traditional                             |
+| `--pad N`            | Roomier margins (default: 2)                                               |
+| `-t`, `--theme NAME` | Start with a color theme (default: `night`)                                |
+| `-p`, `--print`      | Print the chapter as plain text instead of opening the reader              |
+| `--version`          | Show the version and exit                                                  |
 
 **Themes:** `night` · `sepia` · `paper` · `catppuccin-frappe` ·
 `catppuccin-macchiato` · `catppuccin-mocha` · `tokyo-night` · `matrix`
