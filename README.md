@@ -23,6 +23,9 @@ and presents it in a clean, CJK-aware reading pane built with
 - 🖨️ **Plain-text mode** — dump a clean chapter to stdout for piping or saving
 - 📦 **Easy install** — one command installs the `uukanshu` command and its
   dependencies via [`uv`](https://docs.astral.sh/uv/), on any platform
+- 🚢 **Standalone binaries** — single-file executables (no Python needed) for
+  Linux, macOS, and Windows from the
+  [Releases](https://github.com/<you>/uukanshu/releases) page
 - 🌍 **Cross-platform** — no external fetch binaries; anything that runs Python can run `uukanshu`
 
 ---
@@ -31,12 +34,40 @@ and presents it in a clean, CJK-aware reading pane built with
 
 | Dependency                           | Why                                                           | Notes                                   |
 | ------------------------------------ | ------------------------------------------------------------- | --------------------------------------- |
-| **Python ≥ 3.10**                    | Runs the app                                                  | Fetching uses only the standard library |
+| **Python ≥ 3.10**                    | Runs the app (source installs only)                           | Fetching uses only the standard library |
 | **[uv](https://docs.astral.sh/uv/)** | Installs the CLI and manages dependencies (`uv tool install`) | Must be on `PATH`                       |
 
----
+> **No Python? No problem.** Prebuilt single-file binaries are available on
+> the [Releases](https://github.com/<you>/uukanshu/releases) page — see
+> [Getting Started](#getting-started).
 
 ## Getting Started
+
+Two ways in: download a **prebuilt binary** (nothing to install), or install
+the CLI with **uv**.
+
+### Option A — prebuilt binary (no Python needed)
+
+1. Download the file for your platform from the
+   [Releases](https://github.com/<you>/uukanshu/releases) page:
+   `uukanshu-linux-x86_64`, `uukanshu-macos-arm64`, or
+   `uukanshu-windows-x86_64.exe`.
+2. Make it executable and put it on your `PATH` (Linux/macOS):
+
+   ```sh
+   mv uukanshu-linux-x86_64 ~/.local/bin/uukanshu
+   chmod +x ~/.local/bin/uukanshu
+   ```
+
+   On Windows, just place `uukanshu-windows-x86_64.exe` somewhere on `PATH`.
+
+3. The binaries are not code-signed, so expect a one-time OS prompt:
+
+   - **macOS Gatekeeper:** `xattr -d com.apple.quarantine uukanshu`, or
+     right-click the binary → _Open_ on first launch
+   - **Windows SmartScreen:** _More info_ → _Run anyway_
+
+### Option B — install with uv
 
 ### 1. Install uv
 
@@ -66,7 +97,7 @@ uv tool install git+https://github.com/<you>/uukanshu
 `uv` places a `uukanshu` command on your `PATH` (run `uv tool update-shell`
 once if your shell can't find it).
 
-### 3. Read something
+### Read something
 
 ```sh
 # Browse a book's chapter list, then pick one by number
@@ -184,6 +215,13 @@ the theme colors — most visible on subtle themes like `sepia` and `paper`.
 ```sh
 uv tool upgrade uukanshu      # after pulling new commits / a new release
 uv tool uninstall uukanshu
+```
+
+To build a binary yourself (any platform, on that platform):
+
+```sh
+uv run --with pyinstaller --with . pyinstaller uukanshu.spec --noconfirm
+# → dist/uukanshu (dist/uukanshu.exe on Windows)
 ```
 
 ---
