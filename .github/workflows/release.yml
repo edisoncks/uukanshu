@@ -32,7 +32,7 @@ jobs:
       # fingerprint differs between Python builds, and Cloudflare blocks
       # some of them — use the same toolchain the local builds are
       # verified with (see RELEASING.md).
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.14"
 
