@@ -2,11 +2,10 @@
 
 Read novels from [uukanshu.cc](https://uukanshu.cc) directly in your terminal.
 
-`uukanshu` fetches chapters with the **stealth** build of
-[obscura](https://github.com/h4ckf0r0day/obscura) (which gets past Cloudflare),
-strips the page down to just the chapter text, optionally converts Traditional
-→ Simplified Chinese via [OpenCC](https://github.com/BYVoid/OpenCC), and
-presents it in a clean, CJK-aware reading pane built with
+`uukanshu` fetches chapters over plain HTTPS using only the Python standard
+library, strips the page down to just the chapter text, optionally converts
+Traditional → Simplified Chinese via [OpenCC](https://github.com/BYVoid/OpenCC),
+and presents it in a clean, CJK-aware reading pane built with
 [Textual](https://github.com/Textualize/textual).
 
 ---
@@ -22,7 +21,8 @@ presents it in a clean, CJK-aware reading pane built with
 - 🎨 **8 color themes** — night, sepia, paper, three Catppuccin variants,
   Tokyo Night, and Matrix
 - 🖨️ **Plain-text mode** — dump a clean chapter to stdout for piping or saving
-- 🚀 **Zero-install Python deps** — dependencies auto-install on first run via [`uv`](https://docs.astral.sh/uv/)
+- 🚀 **Zero-install Python deps** — fetching needs only the standard library; dependencies auto-install on first run via [`uv`](https://docs.astral.sh/uv/)
+- 🌍 **Cross-platform** — no external fetch binaries; anything that runs Python can run `uukanshu`
 
 ---
 
@@ -30,9 +30,8 @@ presents it in a clean, CJK-aware reading pane built with
 
 | Dependency                                                                             | Why                                                                    | Notes                                                                                         |
 | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Python ≥ 3.10**                                                                      | Runs the script                                                        |                                                                                               |
-| **[uv](https://docs.astral.sh/uv/)**                                                   | Runs the script and auto-installs `OpenCC` + `textual` on first launch | Must be on `PATH`                                                                             |
-| **[obscura](https://github.com/h4ckf0r0day/obscura/releases) v0.2.1+ (stealth build)** | Fetches pages past Cloudflare                                          | The plain/lean build **gets blocked** — grab the `*-stealth.tar.gz` archive for your platform |
+| **Python ≥ 3.10**    | Runs the script                                                        | Fetching uses only the standard library                                                       |
+| **[uv](https://docs.astral.sh/uv/)** | Runs the script and auto-installs `OpenCC` + `textual` on first launch | Must be on `PATH`                                                                             |
 
 ---
 
@@ -47,22 +46,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 See the [uv docs](https://docs.astral.sh/uv/getting-started/installation/) for
 other platforms.
 
-### 2. Install the obscura stealth build
-
-Download the `*-stealth.tar.gz` archive for your platform from the
-[obscura releases page](https://github.com/h4ckf0r0day/obscura/releases),
-extract it, and make sure the `obscura` binary is on your `PATH`:
-
-```sh
-tar xzf obscura-*-stealth.tar.gz
-mv obscura ~/.local/bin/   # or anywhere on your PATH
-obscura --version          # verify it works
-```
-
-> ⚠️ **Important:** only the _stealth_ build works. The lean build's TLS
-> fingerprint gets blocked by Cloudflare.
-
-### 3. Read something
+### 2. Read something
 
 Clone or download this repository, then run the script directly — `uv`
 handles everything else on first launch:
@@ -180,9 +164,10 @@ the theme colors — most visible on subtle themes like `sepia` and `paper`.
 
 ## Troubleshooting
 
-**"Blocked by Cloudflare"** — you're using the _lean_ obscura build (its
-rustls TLS fingerprint gets detected). Install the `*-stealth` archive
-instead; see [Requirements](#requirements).
+**"failed to fetch …"** — transient network errors are retried automatically,
+but if it keeps failing, check your connection (or whether uukanshu.cc is
+up). If you see **"blocked by Cloudflare"**, try again later or from a
+different network.
 
 **`error: give a chapter URL or --book <id>`** — you need to pass either a
 chapter URL or `--book <ID>`. Run `./uukanshu --help` for all options.
