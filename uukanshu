@@ -245,6 +245,19 @@ def to_simplified(cc, *strs):
 
 # ---------------------------------------------------------------- reader UI
 
+class TocOptionList(OptionList):
+    """Chapter picker list that opens scrolled to the current chapter.
+
+    OptionList.on_show() scrolls minimally so the highlighted option just
+    becomes visible (bottom of the viewport for a deep chapter); here we
+    pin the current chapter at the top instead, so browsing starts from
+    where you are.
+    """
+
+    def on_show(self) -> None:
+        self.scroll_to_highlight(top=True)
+
+
 class TocScreen(ModalScreen):
     """Modal chapter picker: arrows to browse, Enter to jump, Esc to close."""
 
@@ -274,7 +287,7 @@ class TocScreen(ModalScreen):
             yield Static(self.ui("章节目录 / Chapters — ↑↓/d/u · Enter jump · Esc close"),
                          id="tochead")
             yield LoadingIndicator(id="tocspin")
-            yield OptionList()
+            yield TocOptionList()
 
     def on_mount(self) -> None:
         self.query_one(OptionList).can_focus = True
@@ -302,6 +315,7 @@ class TocScreen(ModalScreen):
         for pos, _id, _t, url in chapters:
             if url == self.current_url:
                 ol.highlighted = pos - 1
+                ol.scroll_to_highlight(top=True)
                 break
         ol.focus()
 
@@ -420,6 +434,7 @@ class Reader(App):
         m = re.search(r"/book/(\d+)/", url)
         if m:
             self.book_id = m.group(1)
+        self.url = url
         self.prev_url, self.next_url = prev_url, next_url
         self._raw = (book, title, text)
         self._render(book, title, text)
