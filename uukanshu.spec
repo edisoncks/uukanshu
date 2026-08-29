@@ -46,4 +46,5 @@ exe = EXE(
     strip=False,
     upx=False,
     console=True,
+    icon="assets/uukanshu.ico",   # embedded on Windows; ignored elsewhere
 )
