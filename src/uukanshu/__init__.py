@@ -337,9 +337,15 @@ class TocScreen(ModalScreen):
             self._fill(self.chapters)
 
     def action_half(self, sign: int) -> None:
+        """Half-page step that moves the selection with the view, so d/u,
+        arrow keys, and Enter all agree on which chapter is selected."""
         ol = self.query_one(OptionList)
+        if not ol.option_count:
+            return
         step = max(1, ol.container_size.height // 2) * sign
-        ol.scroll_relative(0, step, speed=40, easing="out_quart")
+        current = ol.highlighted if ol.highlighted is not None else 0
+        # watch_highlighted scrolls the selection into view automatically.
+        ol.highlighted = min(max(current + step, 0), ol.option_count - 1)
 
     def populate(self, chapters) -> None:
         """Safe to call before OR after the modal has mounted."""
