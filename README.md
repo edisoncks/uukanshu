@@ -90,7 +90,12 @@ every command below shorter:
 The easiest way: open [uukanshu.cc](https://uukanshu.cc) in your browser,
 find a book you like, copy its **book address** from the address bar (it
 looks like `https://uukanshu.cc/book/18957/`), and paste it after the
-program name — reading starts at chapter 1.
+program name — reading starts at chapter 1:
+
+```sh
+./uukanshu https://uukanshu.cc/book/18957/                          # Mac / Linux
+.\uukanshu.exe https://uukanshu.cc/book/18957/                      # Windows
+```
 
 You can also paste a **chapter's** web address to jump straight there, or
 use the **book ID** — the number in the book's address (here `18957`):
