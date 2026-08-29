@@ -1,0 +1,191 @@
+# uukanshu
+
+Read novels from [uukanshu.cc](https://uukanshu.cc) directly in your terminal.
+
+`uukanshu` fetches chapters with the **stealth** build of
+[obscura](https://github.com/h4ckf0r0day/obscura) (which gets past Cloudflare),
+strips the page down to just the chapter text, optionally converts Traditional
+→ Simplified Chinese via [OpenCC](https://github.com/BYVoid/OpenCC), and
+presents it in a clean, CJK-aware reading pane built with
+[Textual](https://github.com/Textualize/textual).
+
+---
+
+## Features
+
+- 📖 **Comfortable reader UI** — reflowing text with CJK-aware padding that
+  stays correct on all four sides, even as you resize the terminal
+- 🧭 **In-app navigation** — jump between chapters, or browse the full
+  chapter list with a searchable, instantly-opening picker
+- 🀄 **Simplified / Traditional toggle** — convert the entire chapter (text,
+  titles, and UI) on the fly, without refetching
+- 🎨 **8 color themes** — night, sepia, paper, three Catppuccin variants,
+  Tokyo Night, and Matrix
+- 🖨️ **Plain-text mode** — dump a clean chapter to stdout for piping or saving
+- 🚀 **Zero-install Python deps** — dependencies auto-install on first run via [`uv`](https://docs.astral.sh/uv/)
+
+---
+
+## Requirements
+
+| Dependency                                                                             | Why                                                                    | Notes                                                                                         |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Python ≥ 3.10**                                                                      | Runs the script                                                        |                                                                                               |
+| **[uv](https://docs.astral.sh/uv/)**                                                   | Runs the script and auto-installs `OpenCC` + `textual` on first launch | Must be on `PATH`                                                                             |
+| **[obscura](https://github.com/h4ckf0r0day/obscura/releases) v0.2.1+ (stealth build)** | Fetches pages past Cloudflare                                          | The plain/lean build **gets blocked** — grab the `*-stealth.tar.gz` archive for your platform |
+
+---
+
+## Getting Started
+
+### 1. Install uv
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+See the [uv docs](https://docs.astral.sh/uv/getting-started/installation/) for
+other platforms.
+
+### 2. Install the obscura stealth build
+
+Download the `*-stealth.tar.gz` archive for your platform from the
+[obscura releases page](https://github.com/h4ckf0r0day/obscura/releases),
+extract it, and make sure the `obscura` binary is on your `PATH`:
+
+```sh
+tar xzf obscura-*-stealth.tar.gz
+mv obscura ~/.local/bin/   # or anywhere on your PATH
+obscura --version          # verify it works
+```
+
+> ⚠️ **Important:** only the _stealth_ build works. The lean build's TLS
+> fingerprint gets blocked by Cloudflare.
+
+### 3. Read something
+
+Clone or download this repository, then run the script directly — `uv`
+handles everything else on first launch:
+
+```sh
+# Browse a book's chapter list, then pick one by number
+./uukanshu --book <ID> --list
+./uukanshu --book <ID> --chapter 6
+
+# Or jump straight to a chapter by URL
+./uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html
+```
+
+**Finding a book ID:** the ID is the number in `/book/<ID>/` URLs. Browse
+the library (e.g. <https://uukanshu.cc/class_1_1.html>) or search by title:
+
+```txt
+https://uukanshu.cc/modules/article/search.php?q=<title>
+```
+
+---
+
+## Usage
+
+```txt
+uukanshu [URL] [options]
+```
+
+| Option               | Description                                                                      |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `URL`                | Chapter URL to open directly                                                     |
+| `-b`, `--book <ID>`  | Book ID (the number from `/book/<ID>/` URLs)                                     |
+| `-c`, `--chapter N`  | Chapter number from the book's TOC (default: 1)                                  |
+| `-l`, `--list`       | List the book's chapters as plain text and exit                                  |
+| `-z`, `--simplified` | Convert Traditional → Simplified Chinese                                         |
+| `--pad N`            | Padding around the text: N blank rows top/bottom, N cols left/right (default: 2) |
+| `-t`, `--theme NAME` | Reader color theme (default: `night`)                                            |
+| `-p`, `--print`      | Print clean text to stdout instead of opening the reader                         |
+
+### Examples
+
+```sh
+# Simplified Chinese
+./uukanshu --book <ID> -z
+
+# Roomier margins
+./uukanshu https://uukanshu.cc/book/<ID>/<CHAPTER>.html --pad 4
+
+# Start in the sepia theme
+./uukanshu --book <ID> --theme sepia
+
+# Save a chapter as clean text
+./uukanshu --book <ID> --chapter 6 -z --print > chapter6.txt
+```
+
+---
+
+## Reader Keybindings
+
+All keys are also shown in the footer bar while reading.
+
+| Key                                                                                      | Action                                                                                                                                  |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| <kbd>n</kbd> / <kbd>p</kbd>                                                              | Next / previous chapter                                                                                                                 |
+| <kbd>l</kbd>                                                                             | Chapter list — opens instantly with a spinner while the list is fetched; <kbd>Enter</kbd> jumps, <kbd>Esc</kbd> or <kbd>q</kbd> closes  |
+| <kbd>d</kbd> / <kbd>u</kbd>                                                              | Half-page down / up (smooth glide)                                                                                                      |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>Home</kbd> <kbd>End</kbd> | Standard scrolling                                                                                                                      |
+| <kbd>z</kbd>                                                                             | Toggle Simplified / Traditional — instantly re-renders the chapter text, header title, chapter list, and UI messages without refetching |
+| <kbd>t</kbd> / <kbd>T</kbd>                                                              | Cycle color themes forward / backward                                                                                                   |
+| <kbd>q</kbd>                                                                             | Quit                                                                                                                                    |
+
+---
+
+## Themes
+
+Cycle in-app with <kbd>t</kbd>, or set one at launch with `--theme`:
+
+`night` (default) · `sepia` · `paper` · `catppuccin-frappe` · `catppuccin-macchiato` · `catppuccin-mocha` · `tokyo-night` · `matrix`
+
+---
+
+## Environment Variables
+
+| Variable                | Effect                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `COLORTERM=truecolor`   | Enable 24-bit truecolor so themes render with their exact hex colors (see note below) |
+| `UUKANSHU_SIMPLIFIED=1` | Start with Simplified Chinese enabled (same as `-z`)                                  |
+| `UUKANSHU_PAD=N`        | Default text padding (same as `--pad N`)                                              |
+| `UUKANSHU_THEME=NAME`   | Default color theme (same as `--theme NAME`)                                          |
+
+Example:
+
+```sh
+export UUKANSHU_SIMPLIFIED=1
+export UUKANSHU_PAD=6            # roomier margins by default
+export UUKANSHU_THEME=sepia
+```
+
+### Truecolor note
+
+The built-in themes are defined with exact hex colors. Most modern terminal
+emulators (iTerm2, Windows Terminal, kitty, Alacritty, GNOME Terminal, etc.)
+report truecolor support automatically, but if colors look washed out or
+bands of them seem approximated, your terminal may not be advertising it.
+Force 24-bit color with:
+
+```sh
+export COLORTERM=truecolor
+```
+
+Without it, Textual falls back to the 256-color palette and approximates
+the theme colors — most visible on subtle themes like `sepia` and `paper`.
+
+---
+
+## Troubleshooting
+
+**"Blocked by Cloudflare"** — you're using the _lean_ obscura build (its
+rustls TLS fingerprint gets detected). Install the `*-stealth` archive
+instead; see [Requirements](#requirements).
+
+**`error: give a chapter URL or --book <id>`** — you need to pass either a
+chapter URL or `--book <ID>`. Run `./uukanshu --help` for all options.
+
+**Chapter content not found** — make sure the URL points to a chapter
+(`/book/<ID>/<CHAPTER>.html`), not the book's index page.
