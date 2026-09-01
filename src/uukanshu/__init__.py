@@ -71,6 +71,7 @@ import argparse
 import asyncio
 import gzip
 import html
+import http.client
 import os
 import re
 import ssl
@@ -186,6 +187,14 @@ except ImportError:
     _SSL_CONTEXT = ssl.create_default_context()
 
 
+def _retryable(exc: BaseException) -> bool:
+    """Hard 4xx answers won't change on retry; 408/429/5xx and transport
+    errors might."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code in (408, 429) or exc.code >= 500
+    return True
+
+
 def fetch(url: str) -> str:
     """Fetch a uukanshu page over plain HTTPS and return its HTML."""
     page = None
@@ -196,14 +205,20 @@ def fetch(url: str) -> str:
             with urllib.request.urlopen(req, timeout=30,
                                         context=_SSL_CONTEXT) as r:
                 body = r.read()
-            if r.headers.get("Content-Encoding") == "gzip":
-                body = gzip.decompress(body)
+                # Some CDNs gzip regardless of Accept-Encoding; don't
+                # trust the case they spell it in. Read headers inside the
+                # with — after __exit__ the response is closed.
+                if r.headers.get("Content-Encoding", "").lower() == "gzip":
+                    body = gzip.decompress(body)
             page = body.decode("utf-8", errors="replace")
             break
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        # URLError/HTTPError/TimeoutError are all OSError subclasses;
+        # http.client's IncompleteRead/BadStatusLine are not — catch both.
+        except (OSError, http.client.HTTPException) as exc:
             last_exc = exc
-            if attempt < 2:
-                time.sleep(1.5 * (attempt + 1))
+            if attempt == 2 or not _retryable(exc):
+                break
+            time.sleep(1.5 * (attempt + 1))
     if page is None:
         raise RuntimeError(f"failed to fetch {url}: {last_exc}")
     if ("Attention Required" in page or "Just a moment" in page
