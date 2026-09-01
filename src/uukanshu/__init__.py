@@ -234,7 +234,9 @@ def absolutize(href: str) -> str:
 
 
 def link(page: str, label: str):
-    m = re.search(rf'<a href="([^"]+)"[^>]*>\s*{label}\s*</a>', page)
+    # `label` is a regex fragment ("上一章", "目[录錄]", ...); href may or
+    # may not be the anchor's first attribute.
+    m = re.search(rf'<a\s[^>]*?href="([^"]+)"[^>]*>\s*{label}\s*</a>', page)
     return m and absolutize(m.group(1))
 
 
@@ -274,11 +276,12 @@ def chapter_list(toc_page: str, book_id: str | None = None):
 def extract_chapter(page: str, url: str):
     """Pull book name, chapter title, clean text, and nav links from a page."""
     t = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S)
-    title = re.sub(r"<[^>]+>", "", t.group(1)).strip() if t else url
+    title = (html.unescape(re.sub(r"<[^>]+>", "", t.group(1))).strip()
+             if t else url)
 
     bc = re.findall(r'<a href="(?:https?://[^"]*)?/book/\d+/"[^>]*>([^<]+)</a>',
                     page)
-    book = bc[-1].strip() if bc else ""
+    book = html.unescape(bc[-1]).strip() if bc else ""
 
     m = re.search(r'<div class="readcotent[^"]*"[^>]*>(.*)', page, re.S)
     if not m:
@@ -302,7 +305,7 @@ def extract_chapter(page: str, url: str):
     text = re.split(r"\n*上一章\s+(?:章节|章節)?目[录錄]\s+下一章", text)[0].rstrip()
 
     return (book, title, text,
-            link(page, "上一章"), link(page, "目[录錄]") or link(page, "目录"),
+            link(page, "上一章"), link(page, "目[录錄]"),
             link(page, "下一章"))
 
 
