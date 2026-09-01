@@ -637,19 +637,31 @@ class Reader(App):
 def book_url_from_arg(url: str):
     """Return the book index URL if `url` is one (e.g. .../book/123/ or
     .../book/123/index.html), else None. Chapter URLs never match."""
-    m = re.fullmatch(rf"{BASE}/book/(\d+)/?(?:index\.html)?", url or "")
+    m = re.fullmatch(rf"{re.escape(BASE)}/book/(\d+)/?(?:index\.html)?",
+                     url or "")
     return f"{BASE}/book/{m.group(1)}/" if m else None
 
 
+def _check_chapter(n: int, total: int) -> None:
+    """--chapter must name a real TOC position; silently clamping to the
+    nearest end would open a chapter the user didn't ask for."""
+    if not 1 <= n <= total:
+        sys.exit(f"error: --chapter {n} is out of range — this book has "
+                 f"{total} chapters (try --list)")
+
+
 def resolve_start_url(args):
+    if args.url and not args.url.startswith(("http://", "https://")):
+        sys.exit(f"error: url must start with http:// or https:// — "
+                 f"got {args.url!r}")
     book_url = book_url_from_arg(args.url)
     if book_url:
         book_id = re.search(r"/book/(\d+)/", book_url).group(1)
         chapters = chapter_list(fetch(book_url), book_id)
         if not chapters:
             sys.exit(f"error: no chapters found at {book_url}.")
-        idx = max(1, min(args.chapter, len(chapters)))
-        return chapters[idx - 1][3]
+        _check_chapter(args.chapter, len(chapters))
+        return chapters[args.chapter - 1][3]
     if args.url:
         return args.url
     if not args.book:
@@ -658,8 +670,8 @@ def resolve_start_url(args):
     chapters = chapter_list(page, args.book)
     if not chapters:
         sys.exit("error: no chapters found on the book page.")
-    idx = max(1, min(args.chapter, len(chapters)))
-    return chapters[idx - 1][3]
+    _check_chapter(args.chapter, len(chapters))
+    return chapters[args.chapter - 1][3]
 
 
 def _force_utf8_stdio():
@@ -674,10 +686,49 @@ def _force_utf8_stdio():
             pass
 
 
+def _env_int(name: str, default: int, minimum: int | None = None) -> int:
+    """Integer env var with a clean error — argparse never sees bad
+    defaults, so garbage would otherwise traceback at parser build."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        sys.exit(f"error: {name} must be a number — got {raw!r}")
+    if minimum is not None and value < minimum:
+        sys.exit(f"error: {name} must be >= {minimum} — got {raw!r}")
+    return value
+
+
+def _env_theme() -> str:
+    """UUKANSHU_THEME, validated — argparse checks flag values against
+    `choices` but never validates an env-injected default."""
+    raw = os.environ.get("UUKANSHU_THEME", "night")
+    if raw not in {t.name for t in READER_THEMES}:
+        sys.exit("error: UUKANSHU_THEME must be one of: "
+                 + ", ".join(t.name for t in READER_THEMES)
+                 + f" (got {raw!r})")
+    return raw
+
+
+def _nonneg_int(value: str) -> int:
+    """argparse type for --pad: reject garbage and negatives cleanly."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("must be a number")
+    if n < 0:
+        raise argparse.ArgumentTypeError("must be >= 0")
+    return n
+
+
 def main():
     _force_utf8_stdio()
     try:
         run()
+    except KeyboardInterrupt:
+        sys.exit(130)
     except (RuntimeError, OSError) as exc:
         sys.exit(f"error: {exc}")
 
@@ -700,14 +751,14 @@ def run():
                     default=os.environ.get("UUKANSHU_SIMPLIFIED") == "1",
                     help="convert Traditional -> Simplified Chinese "
                          "(env UUKANSHU_SIMPLIFIED=1 to default on)")
-    ap.add_argument("--pad", type=int,
-                    default=int(os.environ.get("UUKANSHU_PAD", "2")),
+    ap.add_argument("--pad", type=_nonneg_int,
+                    default=_env_int("UUKANSHU_PAD", 2, minimum=0),
                     metavar="N",
                     help="padding around text in the reader: N blank rows top/"
                          "bottom, N cols left/right (default 2; env "
                          "UUKANSHU_PAD=N)")
     ap.add_argument("--theme", "-t", choices=[t.name for t in READER_THEMES],
-                    default=os.environ.get("UUKANSHU_THEME", "night"),
+                    default=_env_theme(),
                     metavar="NAME",
                     help="reader color theme (default: night; env "
                          "UUKANSHU_THEME=NAME); cycle in-app with t")
