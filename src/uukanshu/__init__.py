@@ -281,8 +281,35 @@ def extract_chapter(page: str, url: str):
             link(page, "下一章"))
 
 
+# OpenCC's t2s is deliberately conservative: it correctly preserves 著
+# in real words (著名, 著作, 显著...) but also leaves the Traditional
+# aspect particle 著 (看著 -> 看着) unconverted. Convert ONLY the particle
+# by scanning past the protected words — a blanket 著->着 replace would
+# turn 著名 into 着名. Simplified forms; this runs after cc.convert().
+# Extend the list as misses are found.
+_ZHU_KEEP = ("著书立说", "著名", "著作", "著称", "著述", "著者", "著录",
+             "著书", "昭著", "显著", "卓著", "原著", "名著", "巨著",
+             "专著", "编著", "译著", "论著", "合著", "新著", "旧著",
+             "遗著", "拙著", "大著")
+
+
+def _fix_particle_zhu(s: str) -> str:
+    """著 -> 着 for the aspect particle only, never inside _ZHU_KEEP."""
+    out, i, n = [], 0, len(s)
+    while i < n:
+        for w in _ZHU_KEEP:
+            if s.startswith(w, i):
+                out.append(w)
+                i += len(w)
+                break
+        else:
+            out.append("着" if s[i] == "著" else s[i])
+            i += 1
+    return "".join(out)
+
+
 def to_simplified(cc, *strs):
-    return [cc.convert(s).replace("著", "着") for s in strs]
+    return [_fix_particle_zhu(cc.convert(s)) for s in strs]
 
 
 # ---------------------------------------------------------------- reader UI
