@@ -223,26 +223,36 @@ def link(page: str, label: str):
     return m and absolutize(m.group(1))
 
 
-def chapter_list(toc_page: str):
+def chapter_list(toc_page: str, book_id: str | None = None):
     """Return [(position, chapter_page_id, title, url)] for a book TOC page.
 
     The TOC page leads with a 'latest updates' block whose chapters also
     appear in the full ordered list below. Keeping the LAST occurrence of
-    each chapter id positions chapters in reading order.
+    each (book, chapter) pair positions chapters in reading order.
+
+    book_id, when given, drops chapter links that point at a different
+    book (recommendation blocks etc.); None accepts every book. Chapter
+    hrefs may be site-relative or absolute.
     """
     matches = list(re.finditer(
-        r'href="(/book/(\d+)/(\d+)\.html)"[^>]*>\s*([^<]{1,80}?)\s*</a>',
+        r'href="(?:' + re.escape(BASE) + r')?(/book/(\d+)/(\d+)\.html)"'
+        r'[^>]*>\s*([^<]+?)\s*</a>',
         toc_page))
     last_idx = {}
     for i, m in enumerate(matches):
-        last_idx[int(m.group(3))] = i
+        if book_id is not None and m.group(2) != str(book_id):
+            continue
+        last_idx[(m.group(2), m.group(3))] = i
     out, seen = [], set()
     for i, m in enumerate(matches):
-        num = int(m.group(3))
-        if num in seen or last_idx[num] != i:
+        if book_id is not None and m.group(2) != str(book_id):
             continue
-        seen.add(num)
-        out.append((len(out) + 1, num, m.group(4).strip(), BASE + m.group(1)))
+        key = (m.group(2), m.group(3))
+        if key in seen or last_idx[key] != i:
+            continue
+        seen.add(key)
+        out.append((len(out) + 1, int(m.group(3)), m.group(4).strip(),
+                    BASE + m.group(1)))
     return out
 
 
@@ -589,7 +599,7 @@ class Reader(App):
         book_id = self.book_id
         try:
             page = await asyncio.to_thread(fetch, f"{BASE}/book/{book_id}/")
-            chapters = chapter_list(page)  # cached raw; converted at populate time
+            chapters = chapter_list(page, book_id)  # cached raw; converted at populate time
         except Exception as exc:
             if self.screen is screen:
                 screen.show_error(str(exc))
@@ -616,7 +626,8 @@ def book_url_from_arg(url: str):
 def resolve_start_url(args):
     book_url = book_url_from_arg(args.url)
     if book_url:
-        chapters = chapter_list(fetch(book_url))
+        book_id = re.search(r"/book/(\d+)/", book_url).group(1)
+        chapters = chapter_list(fetch(book_url), book_id)
         if not chapters:
             sys.exit(f"error: no chapters found at {book_url}.")
         idx = max(1, min(args.chapter, len(chapters)))
@@ -626,7 +637,7 @@ def resolve_start_url(args):
     if not args.book:
         sys.exit("error: give a chapter URL or --book <id> (see --help).")
     page = fetch(f"{BASE}/book/{args.book}/")
-    chapters = chapter_list(page)
+    chapters = chapter_list(page, args.book)
     if not chapters:
         sys.exit("error: no chapters found on the book page.")
     idx = max(1, min(args.chapter, len(chapters)))
@@ -695,8 +706,12 @@ def run():
         book_url = book_url_from_arg(args.url)
         if not book_url and not args.book:
             sys.exit("error: --list needs a book URL or --book <id>.")
-        page = fetch(book_url or f"{BASE}/book/{args.book}/")
-        chapters = chapter_list(page)
+        if book_url:
+            toc_url, book_id = (book_url,
+                                re.search(r"/book/(\d+)/", book_url).group(1))
+        else:
+            toc_url, book_id = f"{BASE}/book/{args.book}/", args.book
+        chapters = chapter_list(fetch(toc_url), book_id)
         for pos, _id, title, _url in chapters:
             t = to_simplified(cc, title)[0] if cc else title
             print(f"{pos:>5}  {t}")
