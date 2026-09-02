@@ -715,9 +715,15 @@ def resolve_start_url(args):
         chapters = chapter_list(fetch(book_url), book_id)
         if not chapters:
             sys.exit(f"error: no chapters found at {book_url}.")
-        _check_chapter(args.chapter, len(chapters))
-        return chapters[args.chapter - 1][3], chapters
+        _check_chapter(args.chapter or 1, len(chapters))
+        return chapters[(args.chapter or 1) - 1][3], chapters
     if args.url:
+        if args.chapter is not None:
+            # A chapter URL already names its chapter; silently ignoring
+            # --chapter would open a chapter the user didn't ask for.
+            sys.exit(f"error: --chapter {args.chapter} is ignored for a "
+                     f"chapter URL — drop --chapter or start from the "
+                     f"book URL / --book <id>")
         return args.url, None
     if not args.book:
         sys.exit("error: give a chapter URL or --book <id> (see --help).")
@@ -725,8 +731,8 @@ def resolve_start_url(args):
     chapters = chapter_list(page, args.book)
     if not chapters:
         sys.exit("error: no chapters found on the book page.")
-    _check_chapter(args.chapter, len(chapters))
-    return chapters[args.chapter - 1][3], chapters
+    _check_chapter(args.chapter or 1, len(chapters))
+    return chapters[(args.chapter or 1) - 1][3], chapters
 
 
 def _force_utf8_stdio():
@@ -798,8 +804,9 @@ def run():
                     version=f"uukanshu {__version__}")
     ap.add_argument("url", nargs="?", help="chapter or book URL to start at")
     ap.add_argument("--book", "-b", help="book ID, from /book/<ID>/ URLs")
-    ap.add_argument("--chapter", "-c", type=int, default=1, metavar="N",
-                    help="chapter number from the book TOC (default: 1)")
+    ap.add_argument("--chapter", "-c", type=int, default=None, metavar="N",
+                    help="chapter number from the book TOC (default: 1; "
+                         "ignored/error with a chapter URL, see below)")
     ap.add_argument("--list", "-l", action="store_true",
                     help="list chapters of --book (plain text) and exit")
     ap.add_argument("--simplified", "-z", action="store_true",
