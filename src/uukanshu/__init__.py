@@ -79,6 +79,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urljoin
 
 from textual import work
 from textual.app import App, ComposeResult
@@ -248,15 +249,20 @@ def fetch(url: str) -> str:
     return page
 
 
-def absolutize(href: str) -> str:
-    return href if href.startswith("http") else BASE + href
+def absolutize(href: str, url: str) -> str:
+    """Resolve an href found on `url` against it. Hand-rolling this with
+    `BASE + href` breaks for directory-relative hrefs, protocol-relative
+    "//host/..." refs, and anything that merely starts with "http"."""
+    if href.startswith(("http://", "https://")):
+        return href
+    return urljoin(url, href)
 
 
-def link(page: str, label: str):
+def link(page: str, url: str, label: str):
     # `label` is a regex fragment ("上一章", "目[录錄]", ...); href may or
     # may not be the anchor's first attribute.
     m = re.search(rf'<a\s[^>]*?href="([^"]+)"[^>]*>\s*{label}\s*</a>', page)
-    return m and absolutize(m.group(1))
+    return m and absolutize(m.group(1), url)
 
 
 def chapter_list(toc_page: str, book_id: str | None = None):
@@ -324,8 +330,8 @@ def extract_chapter(page: str, url: str):
     text = re.split(r"\n*上一章\s+(?:章节|章節)?目[录錄]\s+下一章", text)[0].rstrip()
 
     return (book, title, text,
-            link(page, "上一章"), link(page, "目[录錄]"),
-            link(page, "下一章"))
+            link(page, url, "上一章"), link(page, url, "目[录錄]"),
+            link(page, url, "下一章"))
 
 
 # OpenCC's t2s is deliberately conservative: it correctly preserves 著
