@@ -353,7 +353,8 @@ def extract_chapter(page: str, url: str):
     body = re.sub(r"<br\s*/?>", "\n", body)
     body = re.sub(r"<[^>]+>", "", body)
     body = body.replace("&emsp;", "")
-    lines = [l.strip() for l in html.unescape(body).splitlines() if l.strip()]
+    lines = [line.strip()
+             for line in html.unescape(body).splitlines() if line.strip()]
     text = "\n\n".join(lines)
     # Belt-and-braces for pages without the mulu-box container: also cut at
     # the literal nav row, tolerating the "章节/章節" prefix (simplified /
