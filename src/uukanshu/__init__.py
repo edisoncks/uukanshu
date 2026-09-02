@@ -499,16 +499,18 @@ class Reader(App):
         Binding("q", "quit", "quit"),
     ]
 
-    def __init__(self, url: str, cc, pad: int, theme: str = "night"):
+    def __init__(self, url: str, cc, simplified: bool, pad: int,
+                 theme: str = "night"):
         super().__init__()
         for t in READER_THEMES:
             self.register_theme(t)
         self.theme = theme
         self.url = url
         self.pad = pad
-        self.simplified = cc is not None
+        self.simplified = simplified  # display mode, independent of cc
         self._t2s = cc    # t2s converter (reused from CLI when -z; built lazily otherwise)
         self._s2t = None  # lazily built: chrome localization for Traditional mode
+        self._s2t_failed = False  # s2t load failed; don't retry every keystroke
         self._raw = None  # raw (book, title, text) of the last fetched chapter
         self.next_url = self.prev_url = None
         m = re.search(r"/book/(\d+)/", url)
@@ -538,12 +540,14 @@ class Reader(App):
         Traditional while the reader is in Traditional mode."""
         if self.simplified:
             return s
-        if self._s2t is None:
+        if self._s2t is None and not self._s2t_failed:
             try:
                 import opencc
                 self._s2t = opencc.OpenCC("s2t")
             except Exception:
-                self._s2t = False
+                # Leave chrome Simplified rather than crash the reader;
+                # recorded so a missing dict doesn't retry on every call.
+                self._s2t_failed = True
         return self._s2t.convert(s) if self._s2t else s
 
     def _render(self, book, title, text):
@@ -841,7 +845,7 @@ def run():
         print(f"{book}\n{title}\n\n{text}\n")
         return
 
-    Reader(url, cc, args.pad, args.theme).run()
+    Reader(url, cc, args.simplified, args.pad, args.theme).run()
 
 
 if __name__ == "__main__":
