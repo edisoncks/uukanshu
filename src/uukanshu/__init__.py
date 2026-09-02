@@ -373,10 +373,6 @@ def extract_chapter(page: str, url: str):
 # whitelist entry 著书 blocked 看著 -> 看着 conversion). Do not re-add one.
 
 
-def to_simplified(cc, *strs):
-    return [cc.convert(s) for s in strs]
-
-
 # ---------------------------------------------------------------- reader UI
 
 class TocOptionList(OptionList):
@@ -550,7 +546,8 @@ class Reader(App):
     def _render(self, book, title, text):
         """Render the given (raw) chapter content in the current mode."""
         if self.simplified:
-            book, title, text = to_simplified(self._conv_t2s(), book, title, text)
+            conv = self._conv_t2s().convert
+            book, title, text = conv(book), conv(title), conv(text)
         self.title = f"{book} — {title}" if book else title
         self.query_one("#doc", Static).update(Text.assemble(
             (book + "\n", "bold"),
@@ -635,8 +632,8 @@ class Reader(App):
         cache itself stays raw — OpenCC round-trips aren't lossless."""
         if not self.simplified:
             return chapters
-        conv = to_simplified(self._conv_t2s(), *[t for _p, _i, t, _u in chapters])
-        return [(p, i, t2, u) for (p, i, _t, u), t2 in zip(chapters, conv)]
+        conv = self._conv_t2s().convert
+        return [(p, i, conv(t), u) for (p, i, t, u) in chapters]
 
     def action_list(self) -> None:
         if self.modal:
@@ -823,7 +820,7 @@ def run():
             toc_url, book_id = f"{BASE}/book/{args.book}/", args.book
         chapters = chapter_list(fetch(toc_url), book_id)
         for pos, _id, title, _url in chapters:
-            t = to_simplified(cc, title)[0] if cc else title
+            t = cc.convert(title) if cc else title
             print(f"{pos:>5}  {t}")
         return
 
@@ -833,7 +830,7 @@ def run():
         page = fetch(url)
         book, title, text, *_ = extract_chapter(page, url)
         if cc:
-            book, title, text = to_simplified(cc, book, title, text)
+            book, title, text = cc.convert(book), cc.convert(title), cc.convert(text)
         print(f"{book}\n{title}\n\n{text}\n")
         return
 
