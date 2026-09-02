@@ -92,6 +92,10 @@ from rich.text import Text
 
 BASE = "https://uukanshu.cc"
 
+# Cap on a single response body; chapter/TOC pages are a few hundred KB at
+# most, so a larger response means a broken or hostile server.
+_MAX_BYTES = 10 * 1024 * 1024
+
 # ----------------------------------------------------------------- themes
 
 # Reading-oriented color themes; `night` is the default (most terminals
@@ -203,16 +207,28 @@ def fetch(url: str) -> str:
             req = urllib.request.Request(url, headers=HEADERS)
             with urllib.request.urlopen(req, timeout=30,
                                         context=_SSL_CONTEXT) as r:
-                body = r.read()
-                # Some CDNs gzip regardless of Accept-Encoding; don't
-                # trust the case they spell it in. Read headers inside the
-                # with — after __exit__ the response is closed.
-                if r.headers.get("Content-Encoding", "").lower() == "gzip":
-                    body = gzip.decompress(body)
+                # Only gzip/identity are supported: no Accept-Encoding is
+                # requested, but some CDNs gzip regardless. Anything else
+                # (br, zstd) would decode to silent mojibake — fail loudly
+                # instead. Read headers inside the with — after __exit__
+                # the response is closed.
+                encoding = r.headers.get("Content-Encoding", "").lower()
+                if encoding == "gzip":
+                    body = gzip.decompress(r.read(_MAX_BYTES + 1))
+                elif encoding in ("", "identity"):
+                    body = r.read(_MAX_BYTES + 1)
+                else:
+                    raise RuntimeError(
+                        f"unsupported Content-Encoding {encoding!r} "
+                        f"from {url}")
+                if len(body) > _MAX_BYTES:
+                    raise RuntimeError(f"response from {url} exceeds "
+                                       f"{_MAX_BYTES // (1024 * 1024)} MB")
             page = body.decode("utf-8", errors="replace")
             break
         # URLError/HTTPError/TimeoutError are all OSError subclasses;
         # http.client's IncompleteRead/BadStatusLine are not — catch both.
+        # Unsupported-encoding/size RuntimeErrors must not retry.
         except (OSError, http.client.HTTPException) as exc:
             last_exc = exc
             if attempt == 2 or not _retryable(exc):
@@ -220,8 +236,12 @@ def fetch(url: str) -> str:
             time.sleep(1.5 * (attempt + 1))
     if page is None:
         raise RuntimeError(f"failed to fetch {url}: {last_exc}")
-    if ("Attention Required" in page or "Just a moment" in page
-            or "you have been blocked" in page):
+    # Sniff for the Cloudflare interstitial in <title> only — these are
+    # English strings that must never trip on a Chinese novel body.
+    m = re.search(r"<title>(.*?)</title>", page, re.S | re.I)
+    title = html.unescape(m.group(1)) if m else ""
+    if ("Attention Required" in title or "Just a moment" in title
+            or "you have been blocked" in title):
         raise RuntimeError(
             "blocked by Cloudflare — try again later or from a "
             "different network")
