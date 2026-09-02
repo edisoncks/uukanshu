@@ -500,7 +500,7 @@ class Reader(App):
     ]
 
     def __init__(self, url: str, cc, simplified: bool, pad: int,
-                 theme: str = "night"):
+                 theme: str = "night", chapters=None):
         super().__init__()
         for t in READER_THEMES:
             self.register_theme(t)
@@ -515,8 +515,8 @@ class Reader(App):
         self.next_url = self.prev_url = None
         m = re.search(r"/book/(\d+)/", url)
         self.book_id = m.group(1) if m else None
-        self.chapters_cache = None
-        self._cache_book = None
+        self.chapters_cache = chapters  # TOC may already be parsed by the CLI
+        self._cache_book = self.book_id if chapters is not None else None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -700,6 +700,12 @@ def _check_chapter(n: int, total: int) -> None:
 
 
 def resolve_start_url(args):
+    """Return (chapter_url, chapters) for the requested start point.
+
+    chapters is the parsed TOC when one was fetched to resolve the start
+    URL (book URL / --book), else None. Returning it lets the reader seed
+    its cache instead of refetching the same page on the first 'l' press.
+    """
     if args.url and not args.url.startswith(("http://", "https://")):
         sys.exit(f"error: url must start with http:// or https:// — "
                  f"got {args.url!r}")
@@ -710,9 +716,9 @@ def resolve_start_url(args):
         if not chapters:
             sys.exit(f"error: no chapters found at {book_url}.")
         _check_chapter(args.chapter, len(chapters))
-        return chapters[args.chapter - 1][3]
+        return chapters[args.chapter - 1][3], chapters
     if args.url:
-        return args.url
+        return args.url, None
     if not args.book:
         sys.exit("error: give a chapter URL or --book <id> (see --help).")
     page = fetch(f"{BASE}/book/{args.book}/")
@@ -720,7 +726,7 @@ def resolve_start_url(args):
     if not chapters:
         sys.exit("error: no chapters found on the book page.")
     _check_chapter(args.chapter, len(chapters))
-    return chapters[args.chapter - 1][3]
+    return chapters[args.chapter - 1][3], chapters
 
 
 def _force_utf8_stdio():
@@ -835,7 +841,7 @@ def run():
             print(f"{pos:>5}  {t}")
         return
 
-    url = resolve_start_url(args)
+    url, chapters = resolve_start_url(args)
 
     if args.plain:
         page = fetch(url)
@@ -845,7 +851,8 @@ def run():
         print(f"{book}\n{title}\n\n{text}\n")
         return
 
-    Reader(url, cc, args.simplified, args.pad, args.theme).run()
+    Reader(url, cc, args.simplified, args.pad, args.theme,
+           chapters=chapters).run()
 
 
 if __name__ == "__main__":
