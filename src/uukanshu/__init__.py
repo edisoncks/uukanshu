@@ -258,11 +258,24 @@ def absolutize(href: str, url: str) -> str:
     return urljoin(url, href)
 
 
+_CHAPTER_HREF = re.compile(rf"(?:{re.escape(BASE)})?/book/\d+/\d+\.html")
+
+
 def link(page: str, url: str, label: str):
+    """Return the nav anchor's href as an absolute chapter URL, or None.
+
+    Only chapter-shaped hrefs are accepted (consistent with chapter_list,
+    which also lists only /book/<id>/<id>.html pages). At the book's ends
+    the site points prev/next at the TOC index or a lastchapter.php stub
+    that would fail to parse — the caller treats None as 'no chapter in
+    that direction' and shows the end-of-book notification.
+    """
     # `label` is a regex fragment ("上一章", "目[录錄]", ...); href may or
     # may not be the anchor's first attribute.
     m = re.search(rf'<a\s[^>]*?href="([^"]+)"[^>]*>\s*{label}\s*</a>', page)
-    return m and absolutize(m.group(1), url)
+    if not m or not _CHAPTER_HREF.fullmatch(m.group(1)):
+        return None
+    return absolutize(m.group(1), url)
 
 
 def chapter_list(toc_page: str, book_id: str | None = None):
