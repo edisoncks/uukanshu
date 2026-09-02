@@ -463,8 +463,11 @@ class TocScreen(ModalScreen):
         if not self.is_mounted:
             return
         self.query_one("#tocspin", LoadingIndicator).display = False
+        # Text, not markup: msg can embed an untrusted URL or exception
+        # text whose brackets would break Rich markup parsing.
         self.query_one("#tochead", Static).update(
-            f"[bold red]error:[/] {msg} — Esc/q to close")
+            Text("error: ", style="bold red") + Text(msg)
+            + Text(" — Esc/q to close"))
 
     def on_option_list_option_selected(self, event) -> None:
         pos = int(str(event.option_id))
@@ -569,8 +572,12 @@ class Reader(App):
         try:
             page = await asyncio.to_thread(fetch, url)
             book, title, text, prev_url, _toc, next_url = extract_chapter(page, url)
-        except Exception as exc:
-            doc.update(f"[bold red]error:[/] {exc}")
+        except RuntimeError as exc:
+            # fetch/extract_chapter raise RuntimeError for everything the
+            # user can trigger (network, block pages, non-chapter URLs).
+            # Anything else is a parser bug — let it surface with a
+            # traceback instead of masquerading as a network error.
+            doc.update(Text(self.ui("错误："), style="bold red") + Text(str(exc)))
             return
         m = re.search(r"/book/(\d+)/", url)
         if m:
@@ -656,7 +663,7 @@ class Reader(App):
         try:
             page = await asyncio.to_thread(fetch, f"{BASE}/book/{book_id}/")
             chapters = chapter_list(page, book_id)  # cached raw; converted at populate time
-        except Exception as exc:
+        except RuntimeError as exc:
             if self.screen is screen:
                 screen.show_error(str(exc))
             return
