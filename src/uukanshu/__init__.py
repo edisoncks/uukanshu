@@ -7,9 +7,9 @@ reading pane: CJK-aware reflowing padding, live resize, and in-app
 chapter navigation.
 
 WHAT YOU NEED
-  * Nothing but Python 3.10+ — fetching uses only the standard library;
-    OpenCC + textual are installed with the package (and are bundled into
-    the standalone release binaries).
+  * Python 3.10+. Fetching itself uses only the standard library; OpenCC,
+    textual, and certifi are installed with the package (and are bundled
+    into the standalone release binaries).
 
 
 KEYS (shown in the footer bar too)

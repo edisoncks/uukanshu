@@ -144,6 +144,19 @@ uukanshu [chapter URL] [options]
 | `-p`, `--print`      | Print the chapter as plain text instead of opening the reader              |
 | `--version`          | Show the version and exit                                                  |
 
+Every option can also be defaulted through an environment variable, so you
+don't have to retype flags each time:
+
+| Environment variable   | Effect                                        |
+| ---------------------- | --------------------------------------------- |
+| `UUKANSHU_SIMPLIFIED`  | Set to `1` to start in Simplified Chinese     |
+| `UUKANSHU_PAD`         | Default margin size (same as `--pad N`)       |
+| `UUKANSHU_THEME`       | Default color theme (same as `--theme NAME`)  |
+
+`--chapter` only applies when starting from a book address or `--book <ID>`;
+a chapter web address already names its chapter, and combining the two is
+rejected with an error.
+
 **Themes:** `night` · `sepia` · `paper` · `catppuccin-frappe` ·
 `catppuccin-macchiato` · `catppuccin-mocha` · `tokyo-night` · `matrix`
 
@@ -171,6 +184,8 @@ what to read: paste a chapter's web address, or use `--book <ID>`.
 
 **"could not find chapter content"** — the web address must point to a
 **chapter** (`…/book/<ID>/<CHAPTER>.html`), not the book's index page.
+Pressing <kbd>p</kbd> on a book's first chapter or <kbd>n</kbd> on its last
+one is safe: the reader says "start of book" / "end of book" instead.
 
 **Colors look washed out** — your terminal may not be using full color. Try
 setting `COLORTERM=truecolor` before starting (PowerShell:
