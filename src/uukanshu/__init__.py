@@ -311,6 +311,12 @@ def chapter_list(toc_page: str, book_id: str | None = None):
     return out
 
 
+def chapter_id(url: str) -> int | None:
+    """The numeric chapter page id in a chapter URL, else None."""
+    m = re.search(r"/book/\d+/(\d+)\.html", url or "")
+    return int(m.group(1)) if m else None
+
+
 def extract_chapter(page: str, url: str):
     """Pull book name, chapter title, clean text, and nav links from a page."""
     t = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S)
@@ -465,11 +471,15 @@ class TocScreen(ModalScreen):
         ol.add_options(
             Option(f"{pos:>5}  {title}", id=str(pos))
             for pos, _id, title, _url in chapters)
-        for pos, _id, _t, url in chapters:
-            if url == self.current_url:
+        current_id = chapter_id(self.current_url)
+        if current_id is not None:
+            # Match by chapter id, not raw URL: the current URL may differ
+            # from the TOC entry in scheme, www prefix, or a redirect.
+            pos = next((p for p, i, _t, _u in chapters if i == current_id),
+                       None)
+            if pos is not None:
                 ol.highlighted = pos - 1
                 ol.scroll_to_highlight(top=True)
-                break
         ol.focus()
 
     def show_error(self, msg: str) -> None:
