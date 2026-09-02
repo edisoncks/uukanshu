@@ -319,7 +319,19 @@ def extract_chapter(page: str, url: str):
 
     bc = re.findall(r'<a href="(?:https?://[^"]*)?/book/\d+/"[^>]*>([^<]+)</a>',
                     page)
-    book = html.unescape(bc[-1]).strip() if bc else ""
+    # Prefer the breadcrumb anchor for THIS book's id; the last match in
+    # document order is only a fallback, so a footer/recommendation block
+    # linking another book's index can't rename the title bar.
+    book = ""
+    book_id = re.search(r"/book/(\d+)/", url)
+    if book_id:
+        bc_own = re.findall(
+            rf'<a href="(?:https?://[^"]*)?/book/{book_id.group(1)}/"'
+            rf'[^>]*>([^<]+)</a>', page)
+        if bc_own:
+            book = html.unescape(bc_own[0]).strip()
+    if not book and bc:
+        book = html.unescape(bc[-1]).strip()
 
     m = re.search(r'<div class="readcotent[^"]*"[^>]*>(.*)', page, re.S)
     if not m:
