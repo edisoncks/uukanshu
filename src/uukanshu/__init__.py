@@ -780,8 +780,13 @@ def _force_utf8_stdio():
     cannot encode the help text (→, CJK) or novel content; force UTF-8."""
     for stream in (sys.stdout, sys.stderr):
         try:
-            if stream is not None and stream.encoding.lower() not in (
-                    "utf-8", "utf8"):
+            if stream is None:
+                continue
+            enc = getattr(stream, "encoding", None)
+            # encoding is None when redirected (pipes); that still needs
+            # forcing — the old `stream.encoding.lower()` raised
+            # AttributeError on None and silently left a non-UTF-8 pipe.
+            if enc is None or enc.lower() not in ("utf-8", "utf8"):
                 stream.reconfigure(encoding="utf-8")
         except (AttributeError, OSError):
             pass
