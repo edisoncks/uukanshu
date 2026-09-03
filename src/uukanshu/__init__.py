@@ -806,7 +806,20 @@ def main():
         run()
     except KeyboardInterrupt:
         sys.exit(130)
-    except (RuntimeError, OSError) as exc:
+    except BrokenPipeError:
+        # Piping --list/--print to `head` closes stdout early; exit
+        # quietly like standard Unix tools instead of printing
+        # "error: [Errno 32] Broken pipe" with exit 1.
+        try:
+            sys.stderr.close()
+        except Exception:
+            pass
+        try:
+            sys.stdout.close()
+        except Exception:
+            pass
+        sys.exit(0)
+    except (RuntimeError, OSError, UnicodeError) as exc:
         sys.exit(f"error: {exc}")
 
 
