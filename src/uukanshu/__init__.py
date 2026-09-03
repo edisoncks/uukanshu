@@ -711,9 +711,12 @@ class Reader(App):
 def book_url_from_arg(url: str):
     """Return the book index URL if `url` is one (e.g. .../book/123/ or
     .../book/123/index.html), else None. Chapter URLs never match."""
-    m = re.fullmatch(rf"{re.escape(BASE)}/book/(\d+)/?(?:index\.html)?",
-                     url or "")
-    return f"{BASE}/book/{m.group(1)}/" if m else None
+    # Strip pasted whitespace; accept http and www variants and normalize
+    # to the canonical https BASE form. Without this, pasted URLs with
+    # spaces or http:// were misclassified as chapter URLs.
+    url = (url or "").strip()
+    m = re.fullmatch(r"https?://(?:www\.)?uukanshu\.cc/book/(\d+)/?(?:index\.html)?", url)
+    return f"{BASE}/book/{int(m.group(1))}/" if m else None
 
 
 def _check_chapter(n: int, total: int) -> None:
@@ -731,7 +734,9 @@ def resolve_start_url(args):
     URL (book URL / --book), else None. Returning it lets the reader seed
     its cache instead of refetching the same page on the first 'l' press.
     """
-    if args.url and not args.url.startswith(("http://", "https://")):
+    if args.url and not args.url.strip().startswith(("http://", "https://")):
+        sys.exit(f"error: url must start with http:// or https:// — "
+                 f"got {args.url!r}")
         sys.exit(f"error: url must start with http:// or https:// — "
                  f"got {args.url!r}")
     book_url = book_url_from_arg(args.url)
