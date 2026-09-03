@@ -277,7 +277,7 @@ def link(page: str, url: str, label: str):
     # may not be the anchor's first attribute. Resolve BEFORE validating:
     # directory-relative hrefs ("456.html") only become chapter-shaped
     # after urljoin, and rejecting them upfront yields a false end-of-book.
-    m = re.search(rf'<a\s[^>]*?href="([^"]+)"[^>]*>\s*{label}\s*</a>', page)
+    m = re.search(rf'<a\s[^>]*?href=["\']([^"\']+)["\'][^>]*>\s*{label}\s*</a>', page)
     if not m:
         return None
     abs_url = absolutize(m.group(1), url)
@@ -298,9 +298,9 @@ def chapter_list(toc_page: str, book_id: str | None = None):
     hrefs may be site-relative or absolute.
     """
     matches = list(re.finditer(
-        r'href="(?:' + re.escape(BASE) + r')?(/book/(\d+)/(\d+)\.html)"'
+        r'href=["\'](?:' + re.escape(BASE) + r')?(/book/(\d+)/(\d+)\.html)["\']'
         r'[^>]*>\s*([^<]+?)\s*</a>',
-        toc_page))
+        toc_page, re.I))
     last_idx = {}
     for i, m in enumerate(matches):
         if book_id is not None and m.group(2) != str(book_id):
@@ -328,11 +328,11 @@ def chapter_id(url: str) -> int | None:
 
 def extract_chapter(page: str, url: str):
     """Pull book name, chapter title, clean text, and nav links from a page."""
-    t = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S)
+    t = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S | re.I)
     title = (html.unescape(re.sub(r"<[^>]+>", "", t.group(1))).strip()
              if t else url)
 
-    bc = re.findall(r'<a href="(?:https?://[^"]*)?/book/\d+/"[^>]*>([^<]+)</a>',
+    bc = re.findall(r'<a href=["\'](?:https?://[^"\']*)?/book/\d+/["\'][^>]*>([^<]+)</a>',
                     page)
     # Prefer the breadcrumb anchor for THIS book's id; the last match in
     # document order is only a fallback, so a footer/recommendation block
@@ -341,14 +341,14 @@ def extract_chapter(page: str, url: str):
     book_id = re.search(r"/book/(\d+)/", url)
     if book_id:
         bc_own = re.findall(
-            rf'<a href="(?:https?://[^"]*)?/book/{book_id.group(1)}/"'
+            rf'<a href=["\'](?:https?://[^"\']*)?/book/{book_id.group(1)}/["\']'
             rf'[^>]*>([^<]+)</a>', page)
         if bc_own:
             book = html.unescape(bc_own[0]).strip()
     if not book and bc:
         book = html.unescape(bc[-1]).strip()
 
-    m = re.search(r'<div class="readcotent[^"]*"[^>]*>(.*)', page, re.S)
+    m = re.search(r'<div\s+class=["\']readcotent[^"\']*["\'][^>]*>(.*)', page, re.S | re.I)
     if not m:
         raise RuntimeError("could not find chapter content on the page "
                            "(is this a chapter URL?)")
@@ -357,9 +357,9 @@ def extract_chapter(page: str, url: str):
     # box to the end of the page it's all UI/footer noise — the keyboard
     # tip, the copyright blurb, the "Copyright ... TOP↑" footer, and the
     # GTM iframe/noscript leftovers — never chapter text.
-    body = re.split(r'<div class="mulu-box"', body, maxsplit=1)[0]
-    body = re.sub(r"<script[^>]*>.*?</script>", "", body, flags=re.S)
-    body = re.sub(r"<br\s*/?>", "\n", body)
+    body = re.split(r'<div\s+class=["\']mulu-box["\']', body, maxsplit=1)[0]
+    body = re.sub(r"<script[^>]*>.*?</script>", "", body, flags=re.S | re.I)
+    body = re.sub(r"<br\s*/?>", "\n", body, flags=re.I)
     body = re.sub(r"<[^>]+>", "", body)
     body = body.replace("&emsp;", "")
     lines = [line.strip()
