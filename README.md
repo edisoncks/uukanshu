@@ -142,16 +142,18 @@ uukanshu [chapter URL] [options]
 | `--pad N`            | Roomier margins (default: 2)                                               |
 | `-t`, `--theme NAME` | Start with a color theme (default: `night`)                                |
 | `-p`, `--print`      | Print the chapter as plain text instead of opening the reader              |
+| `--no-update-check`  | Disable the new-version reminder                                           |
 | `--version`          | Show the version and exit                                                  |
 
 Every option can also be defaulted through an environment variable, so you
 don't have to retype flags each time:
 
-| Environment variable   | Effect                                        |
-| ---------------------- | --------------------------------------------- |
-| `UUKANSHU_SIMPLIFIED`  | Set to `1` to start in Simplified Chinese     |
-| `UUKANSHU_PAD`         | Default margin size (same as `--pad N`)       |
-| `UUKANSHU_THEME`       | Default color theme (same as `--theme NAME`)  |
+| Environment variable       | Effect                                             |
+| ------------------------------ | -------------------------------------------------- |
+| `UUKANSHU_SIMPLIFIED`          | Set to `1` to start in Simplified Chinese          |
+| `UUKANSHU_PAD`                 | Default margin size (same as `--pad N`)            |
+| `UUKANSHU_THEME`               | Default color theme (same as `--theme NAME`)       |
+| `UUKANSHU_NO_UPDATE_CHECK`     | Set to `1` to disable the new-version reminder     |
 
 `--chapter` only applies when starting from a book address or `--book <ID>`;
 a chapter web address already names its chapter, and combining the two is
@@ -195,10 +197,15 @@ setting `COLORTERM=truecolor` before starting (PowerShell:
 
 ## Updating
 
-Download the newest file from the
-[Releases page](https://github.com/edisoncks/uukanshu/releases/latest) and
-replace your old one. Your settings aren't stored anywhere, so nothing else
-to do.
+The reader checks the GitHub Releases page on startup (at most once
+every 12 hours) and shows a short notice when a newer version is
+available. To turn the reminder off: pass `--no-update-check` or set
+`UUKANSHU_NO_UPDATE_CHECK=1`.
+
+To update, download the newest file from the
+ [Releases page](https://github.com/edisoncks/uukanshu/releases/latest) and
+ replace your old one. Your settings aren't stored anywhere, so nothing else
+ to do.
 
 ---
 
