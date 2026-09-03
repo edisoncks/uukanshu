@@ -301,14 +301,23 @@ def chapter_list(toc_page: str, book_id: str | None = None):
         r'href=["\'](?:' + re.escape(BASE) + r')?(/book/(\d+)/(\d+)\.html)["\']'
         r'[^>]*>\s*([^<]+?)\s*</a>',
         toc_page, re.I))
+    # Compare book ids numerically so "--book 00123" matches "/book/123/"
+    # links; a non-numeric --book id matches nothing (clean empty downstream).
+    if book_id is None:
+        wanted = None
+    else:
+        try:
+            wanted = int(str(book_id).strip())
+        except ValueError:
+            wanted = -1
     last_idx = {}
     for i, m in enumerate(matches):
-        if book_id is not None and m.group(2) != str(book_id):
+        if wanted is not None and int(m.group(2)) != wanted:
             continue
         last_idx[(m.group(2), m.group(3))] = i
     out, seen = [], set()
     for i, m in enumerate(matches):
-        if book_id is not None and m.group(2) != str(book_id):
+        if wanted is not None and int(m.group(2)) != wanted:
             continue
         key = (m.group(2), m.group(3))
         if key in seen or last_idx[key] != i:
