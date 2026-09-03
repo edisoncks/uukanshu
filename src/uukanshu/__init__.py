@@ -525,6 +525,7 @@ class Reader(App):
         self.pad = pad
         self.simplified = simplified  # display mode, independent of cc
         self._t2s = cc    # t2s converter (reused from CLI when -z; built lazily otherwise)
+        self._t2s_failed = False  # t2s load failed; don't retry every keystroke
         self._s2t = None  # lazily built: chrome localization for Traditional mode
         self._s2t_failed = False  # s2t load failed; don't retry every keystroke
         self._raw = None  # raw (book, title, text) of the last fetched chapter
@@ -545,10 +546,15 @@ class Reader(App):
         self.load_chapter(self.url)
 
     def _conv_t2s(self):
-        """Lazily built Traditional -> Simplified converter."""
-        if self._t2s is None:
-            import opencc
-            self._t2s = opencc.OpenCC("t2s")
+        """Lazily built Traditional -> Simplified converter, or None."""
+        if self._t2s is None and not self._t2s_failed:
+            try:
+                import opencc
+                self._t2s = opencc.OpenCC("t2s")
+            except Exception:
+                # Missing/broken OpenCC dict must not crash the reader
+                # on first `z` press; callers fall back to raw text.
+                self._t2s_failed = True
         return self._t2s
 
     def ui(self, s: str) -> str:
@@ -569,8 +575,9 @@ class Reader(App):
     def _render(self, book, title, text):
         """Render the given (raw) chapter content in the current mode."""
         if self.simplified:
-            conv = self._conv_t2s().convert
-            book, title, text = conv(book), conv(title), conv(text)
+            conv = self._conv_t2s()
+            if conv is not None:
+                book, title, text = conv.convert(book), conv.convert(title), conv.convert(text)
         self.title = f"{book} — {title}" if book else title
         self.query_one("#doc", Static).update(Text.assemble(
             (book + "\n", "bold"),
@@ -659,8 +666,10 @@ class Reader(App):
         cache itself stays raw — OpenCC round-trips aren't lossless."""
         if not self.simplified:
             return chapters
-        conv = self._conv_t2s().convert
-        return [(p, i, conv(t), u) for (p, i, t, u) in chapters]
+        conv = self._conv_t2s()
+        if conv is None:
+            return chapters
+        return [(p, i, conv.convert(t), u) for (p, i, t, u) in chapters]
 
     def action_list(self) -> None:
         if self.modal:
@@ -859,8 +868,12 @@ def run():
 
     cc = None
     if args.simplified:
-        import opencc
-        cc = opencc.OpenCC("t2s")
+        try:
+            import opencc
+            cc = opencc.OpenCC("t2s")
+        except Exception as exc:
+            sys.exit(f"error: simplified conversion unavailable ({exc}) — "
+                       "is OpenCC installed with its dictionaries?")
 
     if args.list:
         book_url = book_url_from_arg(args.url)
