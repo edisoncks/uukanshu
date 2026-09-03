@@ -608,12 +608,13 @@ class Reader(App):
         try:
             page = await asyncio.to_thread(fetch, url)
             book, title, text, prev_url, _toc, next_url = extract_chapter(page, url)
-        except RuntimeError as exc:
-            # fetch/extract_chapter raise RuntimeError for everything the
-            # user can trigger (network, block pages, non-chapter URLs).
-            # Anything else is a parser bug — let it surface with a
-            # traceback instead of masquerading as a network error.
-            doc.update(Text(self.ui("错误："), style="bold red") + Text(str(exc)))
+        except Exception as exc:
+            # fetch/extract raise RuntimeError for user-triggerable cases
+            # (network, block pages, non-chapter URLs); anything else is a
+            # parser bug from changed site markup. Show it in the pane —
+            # with @work(exit_on_error=True) re-raising would tear down
+            # the whole TUI over one bad page.
+            doc.update(Text(self.ui("错误："), style="bold red") + Text(f"{type(exc).__name__}: {exc}"))
             return
         m = re.search(r"/book/(\d+)/", url)
         if m:
@@ -701,9 +702,9 @@ class Reader(App):
         try:
             page = await asyncio.to_thread(fetch, f"{BASE}/book/{book_id}/")
             chapters = chapter_list(page, book_id)  # cached raw; converted at populate time
-        except RuntimeError as exc:
+        except Exception as exc:
             if self.screen is screen:
-                screen.show_error(str(exc))
+                screen.show_error(f"{type(exc).__name__}: {exc}")
             return
         self.chapters_cache, self._cache_book = chapters, book_id
         if self.screen is screen:
