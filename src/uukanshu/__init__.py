@@ -859,6 +859,8 @@ def run():
         else:
             toc_url, book_id = f"{BASE}/book/{args.book}/", args.book
         chapters = chapter_list(fetch(toc_url), book_id)
+        if not chapters:
+            sys.exit(f"error: no chapters found at {toc_url}.")
         for pos, _id, title, _url in chapters:
             t = cc.convert(title) if cc else title
             print(f"{pos:>5}  {t}")
