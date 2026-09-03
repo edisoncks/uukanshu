@@ -692,20 +692,16 @@ class Reader(App):
             if latest and isinstance(checked_at, (int, float)) \
                     and now - checked_at < _UPDATE_TTL:
                 if is_newer(latest, __version__):
-                    self.notify(self.ui("有新版本") + " / new version "
-                                f"{latest} available: "
-                                "https://github.com/edisoncks/uukanshu/"
-                                f"releases/tag/v{latest}")
+                    self.notify(self.ui("有新版本") +
+                                f" v{latest} / new version available")
                 return
             latest = await asyncio.to_thread(latest_release_version)
             if not latest:
                 return
             _save_cached_latest(latest, now)
             if is_newer(latest, __version__):
-                self.notify(self.ui("有新版本") + " / new version "
-                            f"{latest} available: "
-                            "https://github.com/edisoncks/uukanshu/"
-                            f"releases/tag/v{latest}")
+                self.notify(self.ui("有新版本") +
+                            f" v{latest} / new version available")
         except Exception:
             pass
 
