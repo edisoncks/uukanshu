@@ -667,6 +667,37 @@ class Reader(App):
         doc = self.query_one("#doc", Static)
         doc.styles.padding = (self.pad, self.pad)
         self.load_chapter(self.url)
+        self.check_update()
+
+    @work(exclusive=True, group="update")
+    async def check_update(self) -> None:
+        """Background new-version reminder; newer-only notify, same shape
+        as the theme-change notification. Never blocks chapter loading
+        and never raises into the TUI."""
+        try:
+            if getattr(self, "_update_check_enabled", True) is False:
+                return
+            latest, checked_at = _load_cached_latest()
+            now = time.time()
+            if latest and isinstance(checked_at, (int, float)) \
+                    and now - checked_at < _UPDATE_TTL:
+                if is_newer(latest, __version__):
+                    self.notify(self.ui("有新版本") + " / new version "
+                                f"{latest} available: "
+                                "https://github.com/edisoncks/uukanshu/"
+                                f"releases/tag/v{latest}")
+                return
+            latest = await asyncio.to_thread(latest_release_version)
+            if not latest:
+                return
+            _save_cached_latest(latest, now)
+            if is_newer(latest, __version__):
+                self.notify(self.ui("有新版本") + " / new version "
+                            f"{latest} available: "
+                            "https://github.com/edisoncks/uukanshu/"
+                            f"releases/tag/v{latest}")
+        except Exception:
+            pass
 
     def _conv_t2s(self):
         """Lazily built Traditional -> Simplified converter, or None."""
