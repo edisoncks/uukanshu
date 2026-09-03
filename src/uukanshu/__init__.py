@@ -366,6 +366,12 @@ def latest_release_version(timeout: float = 5) -> str | None:
         return None
 
 
+def _update_check_disabled_by_env() -> bool:
+    """Opt-out via UUKANSHU_NO_UPDATE_CHECK=1/true/yes/on (any case)."""
+    return os.environ.get("UUKANSHU_NO_UPDATE_CHECK", "").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
 def absolutize(href: str, url: str) -> str:
     """Resolve an href found on `url` against it. Hand-rolling this with
     `BASE + href` breaks for directory-relative hrefs, protocol-relative
@@ -639,13 +645,15 @@ class Reader(App):
     ]
 
     def __init__(self, url: str, cc, simplified: bool, pad: int,
-                 theme: str = "night", chapters=None):
+                 theme: str = "night", chapters=None,
+                 update_check: bool = True):
         super().__init__()
         for t in READER_THEMES:
             self.register_theme(t)
         self.theme = theme
         self.url = url
         self.pad = pad
+        self._update_check_enabled = update_check
         self.simplified = simplified  # display mode, independent of cc
         self._t2s = cc    # t2s converter (reused from CLI when -z; built lazily otherwise)
         self._t2s_failed = False  # t2s load failed; don't retry every keystroke
@@ -675,7 +683,9 @@ class Reader(App):
         as the theme-change notification. Never blocks chapter loading
         and never raises into the TUI."""
         try:
-            if getattr(self, "_update_check_enabled", True) is False:
+            if not getattr(self, "_update_check_enabled", True):
+                return
+            if _update_check_disabled_by_env():
                 return
             latest, checked_at = _load_cached_latest()
             now = time.time()
@@ -1029,6 +1039,9 @@ def run():
                          "UUKANSHU_THEME=NAME); cycle in-app with t")
     ap.add_argument("--print", "-p", action="store_true", dest="plain",
                     help="print plain text to stdout, no reader UI")
+    ap.add_argument("--no-update-check", action="store_true",
+                    help="disable the new-version reminder "
+                         "(env UUKANSHU_NO_UPDATE_CHECK=1 to default off)")
     args = ap.parse_args()
 
     cc = None
@@ -1068,7 +1081,8 @@ def run():
         return
 
     Reader(url, cc, args.simplified, args.pad, args.theme,
-           chapters=chapters).run()
+           chapters=chapters,
+           update_check=not args.no_update_check).run()
 
 
 if __name__ == "__main__":
