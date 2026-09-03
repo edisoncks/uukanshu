@@ -309,7 +309,8 @@ def chapter_list(toc_page: str, book_id: str | None = None):
         if key in seen or last_idx[key] != i:
             continue
         seen.add(key)
-        out.append((len(out) + 1, int(m.group(3)), m.group(4).strip(),
+        out.append((len(out) + 1, int(m.group(3)),
+                    html.unescape(m.group(4).strip()),
                     BASE + m.group(1)))
     return out
 
