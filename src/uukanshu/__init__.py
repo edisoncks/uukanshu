@@ -72,6 +72,7 @@ import asyncio
 import gzip
 import html
 import http.client
+import json
 import os
 import re
 import ssl
@@ -250,6 +251,119 @@ def fetch(url: str) -> str:
             "blocked by Cloudflare — try again later or from a "
             "different network")
     return page
+
+
+# ---------------------------------------------------------- update check
+
+# Stable contract: GitHub API JSON `tag_name`, not HTML scraping (layout
+# changes would silently break a page parser). Unauthenticated rate limit
+# is 60 req/hr/IP; the 12h file cache below keeps steady-state use at
+# ~2 req/day, so normal use never gets near the limit.
+GITHUB_API_LATEST = \
+    "https://api.github.com/repos/edisoncks/uukanshu/releases/latest"
+_UPDATE_TTL = 12 * 3600
+
+
+def parse_version(s: str | None):
+    """"X.Y.Z" (optional leading v, surrounding whitespace) -> int tuple,
+    else None. Malformed tags are ignored, never crash the check."""
+    if not s:
+        return None
+    s = s.strip()
+    if s[:1] in ("v", "V"):
+        s = s[1:]
+    parts = s.split(".")
+    if not parts:
+        return None
+    nums = []
+    for p in parts:
+        p = p.strip()
+        if not p.isdigit():
+            return None
+        nums.append(int(p))
+    return tuple(nums) if nums else None
+
+
+def is_newer(latest: str | None, current: str) -> bool:
+    """True when `latest` parses and compares greater than `current`.
+    Unparseable either side -> False (fail silent, never nag wrongly)."""
+    lv, cv = parse_version(latest), parse_version(current)
+    if lv is None or cv is None:
+        return False
+    n = max(len(lv), len(cv))
+    lv += (0,) * (n - len(lv))
+    cv += (0,) * (n - len(cv))
+    return lv > cv
+
+
+def _update_cache_path() -> str:
+    """Platform cache file for the latest-version check."""
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or os.path.join(
+            os.path.expanduser("~"), "AppData", "Local")
+        return os.path.join(base, "uukanshu", "update.json")
+    if sys.platform == "darwin":
+        return os.path.join(os.path.expanduser("~"), "Library", "Caches",
+                            "uukanshu", "update.json")
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache")
+    return os.path.join(base, "uukanshu", "update.json")
+
+
+def _load_cached_latest(now: float | None = None):
+    """(latest, checked_at) from cache, or (None, None). Corrupt cache
+    is ignored — the check simply refetches."""
+    try:
+        with open(_update_cache_path(), encoding="utf-8") as f:
+            data = json.load(f)
+        latest = data.get("latest")
+        checked_at = data.get("checked_at")
+        if not isinstance(latest, str) or not isinstance(
+                checked_at, (int, float)):
+            return None, None
+        return latest, checked_at
+    except (OSError, ValueError):
+        return None, None
+
+
+def _save_cached_latest(latest: str, now: float | None = None) -> None:
+    """Best-effort cache write; failures are silent by design."""
+    try:
+        path = _update_cache_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"latest": latest,
+                       "checked_at": now if now is not None else time.time()},
+                      f)
+    except OSError:
+        pass
+
+
+def latest_release_version(timeout: float = 5) -> str | None:
+    """Query the GitHub public API for the latest release tag ("X.Y.Z",
+    no leading v), or None on any failure (offline, rate-limit, bad JSON).
+    Never raises — the update reminder must not break reading."""
+    try:
+        req = urllib.request.Request(
+            GITHUB_API_LATEST,
+            headers={"Accept": "application/vnd.github+json",
+                     "User-Agent": HEADERS["User-Agent"]})
+        with urllib.request.urlopen(req, timeout=timeout,
+                                        context=_SSL_CONTEXT) as r:
+            raw = r.read(64 * 1024)
+        try:
+            tag = json.loads(raw.decode("utf-8", errors="replace")).get(
+                "tag_name")
+        except (ValueError, AttributeError):
+            return None
+        if not isinstance(tag, str):
+            return None
+        ver = tag.strip()
+        if ver[:1] in ("v", "V"):
+            ver = ver[1:]
+        return ver if parse_version(ver) is not None else None
+    except Exception:
+        return None
 
 
 def absolutize(href: str, url: str) -> str:
