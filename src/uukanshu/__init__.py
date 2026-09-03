@@ -274,11 +274,16 @@ def link(page: str, url: str, label: str):
     that direction' and shows the end-of-book notification.
     """
     # `label` is a regex fragment ("上一章", "目[录錄]", ...); href may or
-    # may not be the anchor's first attribute.
+    # may not be the anchor's first attribute. Resolve BEFORE validating:
+    # directory-relative hrefs ("456.html") only become chapter-shaped
+    # after urljoin, and rejecting them upfront yields a false end-of-book.
     m = re.search(rf'<a\s[^>]*?href="([^"]+)"[^>]*>\s*{label}\s*</a>', page)
-    if not m or not _CHAPTER_HREF.fullmatch(m.group(1)):
+    if not m:
         return None
-    return absolutize(m.group(1), url)
+    abs_url = absolutize(m.group(1), url)
+    if not _CHAPTER_HREF.fullmatch(abs_url):
+        return None
+    return abs_url
 
 
 def chapter_list(toc_page: str, book_id: str | None = None):
