@@ -260,7 +260,7 @@ def fetch(url: str) -> str:
 # is 60 req/hr/IP; the 12h file cache below keeps steady-state use at
 # ~2 req/day, so normal use never gets near the limit.
 GITHUB_API_LATEST = \
-    "https://api.github.com/repos/edisoncks/uukanshu/releases/latest"
+    "https://api.github.com/repos/edisoncks/uukanshu-cli/releases/latest"
 _UPDATE_TTL = 12 * 3600
 
 
