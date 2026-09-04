@@ -15,7 +15,7 @@ just the story: no ads, no clutter, no pop-ups.
 ### 1. Download
 
 Grab one file from the
-[Releases page](https://github.com/edisoncks/uukanshu/releases/latest) —
+[Releases page](https://github.com/edisoncks/uukanshu-cli/releases/latest) —
 no installation needed:
 
 Download the file for your computer and **rename it** as shown — this makes
@@ -203,7 +203,7 @@ available. To turn the reminder off: pass `--no-update-check` or set
 `UUKANSHU_NO_UPDATE_CHECK=1`.
 
 To update, download the newest file from the
- [Releases page](https://github.com/edisoncks/uukanshu/releases/latest) and
+ [Releases page](https://github.com/edisoncks/uukanshu-cli/releases/latest) and
  replace your old one. Your settings aren't stored anywhere, so nothing else
  to do.
 
