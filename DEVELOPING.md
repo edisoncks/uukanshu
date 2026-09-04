@@ -29,7 +29,7 @@ Inside the module, the pieces are:
 Install [uv](https://docs.astral.sh/uv/), then:
 
 ```sh
-git clone https://github.com/edisoncks/uukanshu && cd uukanshu
+git clone https://github.com/edisoncks/uukanshu-cli && cd uukanshu-cli
 uv sync --group build        # project + dependencies + PyInstaller
 uv run uukanshu --help
 ```
@@ -43,7 +43,7 @@ To have the `uukanshu` command without a binary (auto-upgradable):
 
 ```sh
 uv tool install .                                   # from a local clone
-uv tool install git+https://github.com/edisoncks/uukanshu   # or from git
+uv tool install git+https://github.com/edisoncks/uukanshu-cli   # or from git
 uv tool upgrade uukanshu                            # after pulling changes
 uv tool uninstall uukanshu
 ```
